@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}My groups · N.K. Food Court{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">THE MORE, THE MERRIER</p><h1>Your dining groups</h1><p class="muted">One table. Everyone's favourites. A fair share for all.</p></div><div class="inline-actions"><a class="btn btn-secondary" href="{% url 'groups:join' %}">Join with a code</a><a class="btn btn-primary" href="{% url 'groups:create' %}">Start a group</a></div></div>
+<div class="grid">
+{% for group in groups %}<article class="card"><span class="badge">{{ group.get_status_display }}</span><h2>{{ group.name }}</h2><p>{{ group.description|default:'Good food is better together.' }}</p><p class="muted">Hosted by {{ group.owner.get_full_name|default:group.owner.username }} · Code {{ group.code }}</p><a class="btn btn-primary" href="{% url 'groups:detail' group.pk %}">Open group</a></article>
+{% empty %}<div class="empty-state"><h2>Save a seat for your friends</h2><p>Create a group or use a friend's code to join their table.</p><a class="btn btn-primary" href="{% url 'groups:create' %}">Create your first group</a></div>{% endfor %}
+</div>
+{% endblock %}

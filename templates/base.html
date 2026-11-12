@@ -1,0 +1,59 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#164937">
+  <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
+  <meta name="description" content="N.K. Food Court — fresh favourites, shared tables and fair bills. Order together and split every bite with confidence.">
+  <title>{% block title %}N.K. Food Court{% endblock %} · Neelkanth Refreshments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/menu-hours.css' %}">
+  <link rel="stylesheet" href="{% static 'css/food-photos.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <div class="announcement"><span class="announcement-dot"></span> Fresh flavours. Shared moments. <span class="announcement-note">Welcome to Neelkanth Refreshments.</span></div>
+  <header class="site-header">
+    <div class="nav-container">
+      <a class="brand" href="{% url 'menu:home' %}" aria-label="N.K. Food Court home">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 44 44" fill="none"><path d="M12 11v8c0 4 6 4 6 0v-8m-3 0v23M29 10c-5 3-6 10-2 13h3v11m0-24v14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="brand-type">N.K. <span>Food Court</span><small>NEELKANTH REFRESHMENTS</small></span>
+      </a>
+      <button type="button" class="nav-toggle" aria-controls="main-navigation" aria-expanded="false" data-nav-toggle><span></span><span></span><span></span><span class="sr-only">Toggle navigation</span></button>
+      <nav id="main-navigation" class="main-navigation" aria-label="Main navigation">
+        <a href="{% url 'menu:home' %}" {% if request.resolver_match.url_name == 'home' and request.resolver_match.namespace == 'menu' %}aria-current="page"{% endif %}>Home</a>
+        <a href="{% url 'menu:list' %}" {% if request.resolver_match.namespace == 'menu' and request.resolver_match.url_name != 'home' %}aria-current="page"{% endif %}>Our menu</a>
+        {% if user.is_authenticated %}
+        <a href="{% url 'groups:list' %}" {% if request.resolver_match.namespace == 'groups' %}aria-current="page"{% endif %}>My tables</a>
+        <a href="{% url 'orders:list' %}" {% if request.resolver_match.namespace == 'orders' or request.resolver_match.namespace == 'payments' %}aria-current="page"{% endif %}>My orders</a>
+        {% if user.is_staff %}<a href="{% url 'dashboard:home' %}" {% if request.resolver_match.namespace == 'dashboard' %}aria-current="page"{% endif %}>Dashboard</a>{% endif %}
+        <span class="nav-divider" aria-hidden="true"></span>
+        <a class="nav-profile" href="{% url 'accounts:profile' %}"><span class="avatar avatar-small">{{ user.first_name|default:user.username|first|upper }}</span><span>{{ user.first_name|default:user.username }}</span></a>
+        <form method="post" action="{% url 'logout' %}" class="nav-logout">{% csrf_token %}<button type="submit" class="text-button">Sign out</button></form>
+        {% else %}
+        <a href="{% url 'login' %}">Sign in</a>
+        <a class="btn btn-primary btn-small" href="{% url 'accounts:register' %}">Join the table <span aria-hidden="true">↗</span></a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+  <main id="main-content" class="site-main" tabindex="-1">
+    {% if messages %}<div class="messages" aria-live="polite">{% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}" role="status"><span>{{ message }}</span><button type="button" class="alert-dismiss" aria-label="Dismiss notification" data-dismiss-message>×</button></div>{% endfor %}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <div><a class="footer-brand" href="{% url 'menu:home' %}">N.K. Food Court<span class="brand-period">.</span></a><p>Good food brings us together.</p></div>
+    <div class="footer-links"><a href="{% url 'menu:list' %}">Explore the menu</a><a href="{% url 'groups:create' %}">Start a group order</a><a href="{% url 'menu:photography' %}">Photo credits</a><span>Made for your table, down to the last paise.</span></div>
+    <div class="footer-bottom"><span>© {% now "Y" %} Neelkanth Refreshments</span><span>All prices in INR · Payments verified by your collector</span></div>
+  </footer>
+  <dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title"><form method="dialog"><p class="eyebrow">One quick check</p><h2 id="confirm-title">Confirm this action</h2><p id="confirm-message"></p><div class="inline-actions"><button class="btn btn-secondary" value="cancel">Keep as is</button><button class="btn btn-primary" value="confirm">Confirm</button></div></form></dialog>
+  <script src="{% static 'js/app.js' %}" defer></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

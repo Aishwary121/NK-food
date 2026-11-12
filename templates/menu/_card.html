@@ -1,0 +1,11 @@
+{% load static %}
+<article class="food-card card">
+  <div class="food-image">{% with photo_url=item.photo_url %}{% if photo_url %}<img src="{{ photo_url }}" alt="{{ item.name }}{% if not item.image %} — representative food photograph{% endif %}" width="420" height="280" loading="lazy" decoding="async">{% else %}<div class="food-photo-pending"><span>Fresh from our kitchen</span><strong>{{ item.name }}</strong></div>{% endif %}{% endwith %}{% if not item.available_now %}<span class="badge">{% if item.price == None %}Price at counter{% else %}Unavailable now{% endif %}</span>{% endif %}</div>
+  <div class="food-content"><div class="food-meta"><span class="eyebrow">{{ item.category.name }}</span>{% if item.is_vegetarian %}<span class="veg-indicator" title="Vegetarian" aria-label="Vegetarian"></span>{% endif %}</div><h3>{{ item.name }}</h3><p class="muted">{{ item.description|default:item.availability_note }}</p><div class="food-meta"><strong class="price">{% if item.price != None %}₹{{ item.price|floatformat:2 }}{% else %}MRP{% endif %}</strong>
+  {% if home_card %}<a class="btn btn-small btn-secondary" href="{% url 'menu:list' %}?q={{ item.name|urlencode }}">Choose →</a>
+  {% elif not item.available_now %}<span class="muted">{{ item.availability_note }}</span>
+  {% elif not user.is_authenticated %}<a class="btn btn-small btn-primary" href="{% url 'accounts:login' %}?next={% url 'menu:list' %}">Sign in to order</a>
+  {% elif active_group %}<form method="post" action="{% url 'orders:add' %}">{% csrf_token %}<input type="hidden" name="group_id" value="{{ active_group.pk }}"><input type="hidden" name="item_id" value="{{ item.pk }}"><input type="hidden" name="quantity" value="1"><button class="btn btn-small btn-primary" type="submit">+ Add to cart</button></form>
+  {% elif memberships %}<span class="muted">Choose your group above</span>
+  {% else %}<a class="btn btn-small btn-primary" href="{% url 'groups:create' %}">Start an order</a>{% endif %}</div></div>
+</article>

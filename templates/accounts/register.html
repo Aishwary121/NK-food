@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Create your account · N.K. Food Court{% endblock %}
+{% block content %}
+<div class="split-layout">
+  <section class="hero-copy"><p class="eyebrow">A seat at the table</p><h1>Great food tastes<br>better together.</h1><p class="muted">Save your favourites, order with friends, and let us take care of the maths.</p><div class="card"><strong>Made for your lunch plans.</strong><p>Share the dishes you love. Pay exactly your part. Every rupee stays accounted for.</p></div></section>
+  <section class="card form-card"><p class="eyebrow">Welcome to N.K.</p><h2>Create an account</h2><form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">Create account</button></form><p class="muted">Already have a seat? <a href="{% url 'accounts:login' %}">Sign in</a></p></section>
+</div>
+{% endblock %}

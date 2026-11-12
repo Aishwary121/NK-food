@@ -1,0 +1,4 @@
+<section class="card opening-hours" aria-label="Restaurant opening hours">
+  <div><p class="eyebrow">{{ restaurant.brand }} · Since {{ restaurant.since }}</p><h2>Come hungry. Leave happy.</h2><p class="muted">Opening hours · India Standard Time</p></div>
+  <dl class="opening-hours-list">{% for period in restaurant.hours %}<div><dt>{{ period.label }}</dt><dd>{{ period.daytime }}<br>{{ period.evening }}</dd></div>{% endfor %}</dl>
+</section>

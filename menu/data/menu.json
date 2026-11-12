@@ -1,0 +1,1037 @@
+[
+  {
+    "name": "HOT SIPS",
+    "items": [
+      {
+        "name": "Special Tea",
+        "price": "15.00",
+        "until_17": false
+      },
+      {
+        "name": "Green Tea",
+        "price": "15.00",
+        "until_17": false
+      },
+      {
+        "name": "Hot Coffee",
+        "price": "35.00",
+        "until_17": false
+      },
+      {
+        "name": "Hot Milk",
+        "price": "45.00",
+        "until_17": false
+      },
+      {
+        "name": "Bournvita Milk",
+        "price": "50.00",
+        "until_17": false
+      },
+      {
+        "name": "Horlicks Milk",
+        "price": "60.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "BEAT THE HEAT",
+    "items": [
+      {
+        "name": "Nimbu Paani",
+        "price": "27.00",
+        "until_17": false
+      },
+      {
+        "name": "Nimbu Soda",
+        "aliases": ["Nimboo Soda"],
+        "price": "45.00",
+        "until_17": false
+      },
+      {
+        "name": "Masala Soda",
+        "price": "50.00",
+        "until_17": false
+      },
+      {
+        "name": "Masala Lemonade",
+        "price": "50.00",
+        "until_17": false
+      },
+      {
+        "name": "Spl. Sweet Lassi",
+        "price": "55.00",
+        "until_17": false
+      },
+      {
+        "name": "Salted Lassi",
+        "price": "55.00",
+        "until_17": false
+      },
+      {
+        "name": "Mango Lassi",
+        "price": "65.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "MILK SHAKES",
+    "items": [
+      {
+        "name": "Banana Shake",
+        "price": "60.00",
+        "until_17": false
+      },
+      {
+        "name": "Roohafza Shake",
+        "price": "60.00",
+        "until_17": false
+      },
+      {
+        "name": "Mango Shake",
+        "price": "70.00",
+        "until_17": false
+      },
+      {
+        "name": "Strawberry Shake",
+        "price": "70.00",
+        "until_17": false
+      },
+      {
+        "name": "Chocolate Shake",
+        "price": "75.00",
+        "until_17": false
+      },
+      {
+        "name": "Cold Coffee",
+        "price": "75.00",
+        "until_17": false
+      },
+      {
+        "name": "Butterscotch Shake",
+        "price": "75.00",
+        "until_17": false
+      },
+      {
+        "name": "Black current Shake",
+        "aliases": ["Black Currant Shake"],
+        "price": "75.00",
+        "until_17": false
+      },
+      {
+        "name": "Oreo Shake",
+        "price": "85.00",
+        "until_17": false
+      },
+      {
+        "name": "Kitkat Shake",
+        "price": "85.00",
+        "until_17": false
+      },
+      {
+        "name": "Vanilla Shake",
+        "price": "75.00",
+        "until_17": false
+      },
+      {
+        "name": "Ice Cream Add On",
+        "price": "20.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "MOCKTAILS",
+    "items": [
+      {
+        "name": "Virgin Mojito",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Blue Lagoon",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Blue Berry",
+        "price": "100.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "CHAAT BHANDAR",
+    "items": [
+      {
+        "name": "Golgappe (Atta/Suji) 6PC",
+        "price": "40.00",
+        "until_17": false
+      },
+      {
+        "name": "Aloo Tikki Chaat",
+        "price": "65.00",
+        "until_17": false
+      },
+      {
+        "name": "Bhel Puri",
+        "price": "65.00",
+        "until_17": false
+      },
+      {
+        "name": "Dahi Puri 5PC",
+        "price": "60.00",
+        "until_17": false
+      },
+      {
+        "name": "Papri Chaat",
+        "price": "65.00",
+        "until_17": false
+      },
+      {
+        "name": "Bhalla Papri Chaat",
+        "price": "65.00",
+        "until_17": false
+      },
+      {
+        "name": "Dahi Bhalla",
+        "price": "65.00",
+        "until_17": false
+      },
+      {
+        "name": "Samosa (Till 5PM)",
+        "price": "15.00",
+        "until_17": true
+      },
+      {
+        "name": "Bread Pakoda (Till 5PM)",
+        "price": "25.00",
+        "until_17": true
+      },
+      {
+        "name": "Chana Samosa Chaat 2pc (Till 5PM)",
+        "price": "65.00",
+        "until_17": true
+      },
+      {
+        "name": "Pav Bhaji",
+        "price": "80.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "TAWA PRANTHA (Till 5PM)",
+    "aliases": ["TAWA PARANTHA (Till 5PM)"],
+    "items": [
+      {
+        "name": "Stuffed Prantha With Butter (Aloo/Onion/Mix/Gobhi)",
+        "aliases": ["Stuffed Parantha With Butter (Aloo/Onion/Mix/Gobhi)"],
+        "price": "50.00",
+        "until_17": true
+      },
+      {
+        "name": "Paneer Prantha With Butter",
+        "aliases": ["Paneer Parantha With Butter"],
+        "price": "55.00",
+        "until_17": true
+      },
+      {
+        "name": "Plain Prantha",
+        "aliases": ["Plain Parantha"],
+        "price": "25.00",
+        "until_17": true
+      }
+    ]
+  },
+  {
+    "name": "CHINESE",
+    "items": [
+      {
+        "name": "Desi Chowmein",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Noodles",
+        "price": "105.00",
+        "until_17": false
+      },
+      {
+        "name": "Hakka Noodles",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Chilly Garlic Noodles",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Spring Roll",
+        "price": "20.00",
+        "until_17": false
+      },
+      {
+        "name": "Chilly Paneer (Dry/Gravy)",
+        "price": "150.00",
+        "until_17": false
+      },
+      {
+        "name": "Chilly Mushroom",
+        "price": "150.00",
+        "until_17": false
+      },
+      {
+        "name": "Veg Manchurian (Dry/Gravy)",
+        "price": "125.00",
+        "until_17": false
+      },
+      {
+        "name": "Honey Potato Chilly",
+        "price": "110.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "POWER MEALS",
+    "items": [
+      {
+        "name": "Nutri Sandwich",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Spinach and Corn Sandwich",
+        "price": "105.00",
+        "until_17": false
+      },
+      {
+        "name": "Nutri Pulao with Curd",
+        "price": "105.00",
+        "until_17": false
+      },
+      {
+        "name": "Triple Protein Salad",
+        "price": "110.00",
+        "until_17": false
+      },
+      {
+        "name": "Whole Wheat Tofu Bhurji Wrap",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Tikka Rice Bowl",
+        "price": "155.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "SOUTH INDIAN",
+    "items": [
+      {
+        "name": "Masala Dosa",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Onion Masala Dosa",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Dosa",
+        "price": "120.00",
+        "until_17": false
+      },
+      {
+        "name": "Plain Dosa",
+        "price": "75.00",
+        "until_17": false
+      },
+      {
+        "name": "Lemon Rice",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Tomato Rice",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Sambhar Rice",
+        "price": "65.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "TOAST & SANDWICHES",
+    "items": [
+      {
+        "name": "Bread Butter Toast",
+        "price": "60.00",
+        "until_17": false
+      },
+      {
+        "name": "Aloo Masala Toast",
+        "price": "75.00",
+        "until_17": false
+      },
+      {
+        "name": "Chilly Cheese Toast",
+        "price": "145.00",
+        "until_17": false
+      },
+      {
+        "name": "Veg Grilled Sandwich",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Cheese Grilled Sandwich",
+        "price": "110.00",
+        "until_17": false
+      },
+      {
+        "name": "Spicy Paneer Grilled Sandwich",
+        "price": "120.00",
+        "until_17": false
+      },
+      {
+        "name": "Creamy Paneer Sandwich",
+        "price": "130.00",
+        "until_17": false
+      },
+      {
+        "name": "Creamy Mushroom Sandwich",
+        "price": "120.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "PIZZA, PASTA & SIDES",
+    "items": [
+      {
+        "name": "Veggie Blast Pizza 8\"",
+        "price": "185.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Makhni Pizza 8\"",
+        "price": "195.00",
+        "until_17": false
+      },
+      {
+        "name": "N.K. Spl. Pizza 8\"",
+        "price": "195.00",
+        "until_17": false
+      },
+      {
+        "name": "Red Sauce Pasta",
+        "price": "130.00",
+        "until_17": false
+      },
+      {
+        "name": "White Sauce Pasta",
+        "price": "130.00",
+        "until_17": false
+      },
+      {
+        "name": "French Fries",
+        "price": "75.00",
+        "until_17": false
+      },
+      {
+        "name": "Loaded Fries",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Extra Cheese",
+        "price": "25.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "BURGER & WRAPS",
+    "items": [
+      {
+        "name": "N.K Veggie Burger",
+        "price": "60.00",
+        "until_17": false
+      },
+      {
+        "name": "Noodle Burger",
+        "price": "70.00",
+        "until_17": false
+      },
+      {
+        "name": "Cheese Burger",
+        "price": "80.00",
+        "until_17": false
+      },
+      {
+        "name": "Vegetable Wrap",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Wrap",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Mushroom Wrap",
+        "price": "100.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "MAIN COURSE — DAL & SABZI",
+    "items": [
+      {
+        "name": "Mix Veg",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Aloo Jeera",
+        "price": "65.00",
+        "until_17": false
+      },
+      {
+        "name": "Aloo Gobhi",
+        "price": "80.00",
+        "until_17": false
+      },
+      {
+        "name": "Gobhi Masala",
+        "price": "95.00",
+        "until_17": false
+      },
+      {
+        "name": "Aloo Matar",
+        "price": "75.00",
+        "until_17": false
+      },
+      {
+        "name": "Banarasi Dum Aloo",
+        "price": "110.00",
+        "until_17": false
+      },
+      {
+        "name": "Kashmiri Dum Aloo",
+        "price": "120.00",
+        "until_17": false
+      },
+      {
+        "name": "Aloo Bhurji",
+        "price": "75.00",
+        "until_17": false
+      },
+      {
+        "name": "Baingan Bharta",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Bhindi Masala",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Keema Gobhi Matar",
+        "aliases": ["Kaccha Gobhi Matar"],
+        "price": "110.00",
+        "until_17": false
+      },
+      {
+        "name": "Palak Chana",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Palak Corn",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Palak Kofta",
+        "price": "110.00",
+        "until_17": false
+      },
+      {
+        "name": "Tomato Chutney",
+        "price": "80.00",
+        "until_17": false
+      },
+      {
+        "name": "Black Chana Masala",
+        "price": "110.00",
+        "until_17": false
+      },
+      {
+        "name": "White Chana Masala",
+        "price": "120.00",
+        "until_17": false
+      },
+      {
+        "name": "Veg Kofta",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Malai Kofta",
+        "price": "135.00",
+        "until_17": false
+      },
+      {
+        "name": "Kadhi Pakora",
+        "price": "45.00",
+        "until_17": false
+      },
+      {
+        "name": "Black Dal Fry",
+        "price": "60.00",
+        "until_17": false
+      },
+      {
+        "name": "Dal Makhani",
+        "price": "65.00",
+        "until_17": false
+      },
+      {
+        "name": "Yellow Dal",
+        "price": "45.00",
+        "until_17": false
+      },
+      {
+        "name": "Punjabi Dal Tadka",
+        "price": "60.00",
+        "until_17": false
+      },
+      {
+        "name": "Rajma Tadka",
+        "price": "60.00",
+        "until_17": false
+      },
+      {
+        "name": "White Chana Gravy",
+        "price": "45.00",
+        "until_17": false
+      },
+      {
+        "name": "Black Chana Gravy",
+        "price": "75.00",
+        "until_17": false
+      },
+      {
+        "name": "Nutri Masala",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Soya Achari Champ",
+        "price": "120.00",
+        "until_17": false
+      },
+      {
+        "name": "Soya Masala Champ",
+        "price": "120.00",
+        "until_17": false
+      },
+      {
+        "name": "Kadahi Mushroom",
+        "price": "135.00",
+        "until_17": false
+      },
+      {
+        "name": "Kadahi Veg",
+        "aliases": ["Kadhai Veg"],
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Mushroom Do Piaza",
+        "price": "140.00",
+        "until_17": false
+      },
+      {
+        "name": "Mushroom Matar",
+        "price": "120.00",
+        "until_17": false
+      },
+      {
+        "name": "Mushroom Masala",
+        "price": "140.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "PANEER SPECIAL",
+    "items": [
+      {
+        "name": "Shahi Paneer",
+        "price": "145.00",
+        "until_17": false
+      },
+      {
+        "name": "Kadahi Paneer",
+        "aliases": ["Kadhai Paneer"],
+        "price": "140.00",
+        "until_17": false
+      },
+      {
+        "name": "Achari Paneer",
+        "price": "140.00",
+        "until_17": false
+      },
+      {
+        "name": "Matar Paneer",
+        "price": "130.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Do Pyaza",
+        "price": "140.00",
+        "until_17": false
+      },
+      {
+        "name": "Palak Paneer",
+        "price": "130.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Butter Masala",
+        "price": "140.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Tikka Butter Masala",
+        "price": "150.00",
+        "until_17": false
+      },
+      {
+        "name": "Dosti Paneer",
+        "price": "145.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Lababdar",
+        "price": "145.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Makhni",
+        "price": "145.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Bhurji",
+        "price": "150.00",
+        "until_17": false
+      },
+      {
+        "name": "Cheese Tomato",
+        "price": "140.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "INDIAN BREADS",
+    "items": [
+      {
+        "name": "Tawa Roti",
+        "price": "7.00",
+        "until_17": false
+      },
+      {
+        "name": "Tawa Butter Roti",
+        "price": "9.00",
+        "until_17": false
+      },
+      {
+        "name": "Tandoori Roti",
+        "price": "12.00",
+        "until_17": false
+      },
+      {
+        "name": "Tandoori Butter Roti",
+        "price": "14.00",
+        "until_17": false
+      },
+      {
+        "name": "Butter Naan",
+        "price": "35.00",
+        "until_17": false
+      },
+      {
+        "name": "Plain Naan",
+        "price": "30.00",
+        "until_17": false
+      },
+      {
+        "name": "Lachha Prantha",
+        "aliases": ["Lachha Parantha"],
+        "price": "35.00",
+        "until_17": false
+      },
+      {
+        "name": "Mirchi Lachha Prantha",
+        "aliases": ["Mirchi Lachha Parantha"],
+        "price": "40.00",
+        "until_17": false
+      },
+      {
+        "name": "Garlic Naan",
+        "price": "45.00",
+        "until_17": false
+      },
+      {
+        "name": "Stuffed Kulcha",
+        "price": "55.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "RICE DISHES",
+    "items": [
+      {
+        "name": "Plain Rice",
+        "price": "45.00",
+        "until_17": false
+      },
+      {
+        "name": "Jeera Rice",
+        "price": "50.00",
+        "until_17": false
+      },
+      {
+        "name": "Veg Pulao",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Gobhi Rice",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Veg Biryani",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Hyderabadi Biryani",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Biryani",
+        "price": "115.00",
+        "until_17": false
+      },
+      {
+        "name": "Veg Fried Rice",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Chilly Garlic Rice",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Paneer Fried Rice",
+        "price": "115.00",
+        "until_17": false
+      },
+      {
+        "name": "Rice Bowl with Nugget",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Mushroom Fried Rice",
+        "price": "100.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "THALI & COMBOS",
+    "items": [
+      {
+        "name": "Normal Thali",
+        "description": "2pc Tawa Butter Chapati + Rice + Sabji + Dal + Raita + Salad + Sprouts + Pickle",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "N.K Special Thali",
+        "description": "2pc Tandoori Butter Roti + Rice + Sabji + Dal + Paneer Sabji + Raita + Salad + Pickle + Dessert",
+        "price": "150.00",
+        "until_17": false
+      },
+      {
+        "name": "Rajmah Rice",
+        "price": "80.00",
+        "until_17": false
+      },
+      {
+        "name": "Chana Rice",
+        "price": "80.00",
+        "until_17": false
+      },
+      {
+        "name": "Dal Rice",
+        "price": "80.00",
+        "until_17": false
+      },
+      {
+        "name": "Kadhi Rice",
+        "price": "80.00",
+        "until_17": false
+      },
+      {
+        "name": "Fried Rice Manchurian",
+        "price": "150.00",
+        "until_17": false
+      },
+      {
+        "name": "Fried Rice Potato Chilly",
+        "aliases": ["Fried Potato Chilly"],
+        "price": "150.00",
+        "until_17": false
+      },
+      {
+        "name": "Noodles Manchurian",
+        "price": "155.00",
+        "until_17": false
+      },
+      {
+        "name": "Noodles Potato Chilly",
+        "price": "155.00",
+        "until_17": false
+      },
+      {
+        "name": "Onion Kulcha with Gravy",
+        "price": "100.00",
+        "until_17": false
+      },
+      {
+        "name": "Cheese Naan with Gravy",
+        "price": "110.00",
+        "until_17": false
+      },
+      {
+        "name": "Amritsari Naan with Chana 2pc",
+        "price": "90.00",
+        "until_17": false
+      },
+      {
+        "name": "Lachha Prantha with Dal 2pc",
+        "aliases": ["Lachha Parantha with Dal 2pc"],
+        "price": "110.00",
+        "until_17": false
+      },
+      {
+        "name": "Chana Poori 5pc (Till 5PM)",
+        "price": "80.00",
+        "until_17": true
+      },
+      {
+        "name": "Chana Bhatura 2pc",
+        "price": "80.00",
+        "until_17": false
+      },
+      {
+        "name": "Plain Parantha with Chana 2pcs (Till 5PM)",
+        "price": "80.00",
+        "until_17": true
+      }
+    ]
+  },
+  {
+    "name": "SALAD & RAITA",
+    "items": [
+      {
+        "name": "Sirka Onion",
+        "price": "10.00",
+        "until_17": false
+      },
+      {
+        "name": "Nimbu Onion",
+        "price": "10.00",
+        "until_17": false
+      },
+      {
+        "name": "Green Salad",
+        "price": "35.00",
+        "until_17": false
+      },
+      {
+        "name": "Boondi Raita",
+        "price": "35.00",
+        "until_17": false
+      },
+      {
+        "name": "Mix Raita",
+        "price": "40.00",
+        "until_17": false
+      },
+      {
+        "name": "Plain Curd",
+        "price": "35.00",
+        "until_17": false
+      }
+    ]
+  },
+  {
+    "name": "DESSERTS",
+    "items": [
+      {
+        "name": "Spl. Gulab Jamun 1pc",
+        "price": "25.00",
+        "until_17": false
+      },
+      {
+        "name": "Spl. Gulab Jamun 2pc",
+        "price": "45.00",
+        "until_17": false
+      },
+      {
+        "name": "Moong Dal Halwa (Winter Spl.)",
+        "price": "65.00",
+        "until_17": false
+      },
+      {
+        "name": "Gajrela (Winter Spl.)",
+        "price": "65.00",
+        "until_17": false
+      },
+      {
+        "name": "Rabdi Shots",
+        "price": "60.00",
+        "until_17": false
+      },
+      {
+        "name": "Ice Cream",
+        "price": null,
+        "until_17": false
+      }
+    ]
+  }
+]

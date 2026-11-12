@@ -1,0 +1,17 @@
+"""Copy into the WSGI file linked by PythonAnywhere's Web tab; edit USERNAME."""
+import os
+from pathlib import Path
+import sys
+
+project = Path('/home/USERNAME/NK-food')
+sys.path.insert(0, str(project))
+
+# This file must be outside the repository and contain one JSON object of
+# environment values. Protect it with chmod 600. Never commit secrets.
+import json
+configuration = json.loads(Path('/home/USERNAME/.nk-food-environment.json').read_text())
+os.environ.update({key: str(value) for key, value in configuration.items()})
+os.environ['DJANGO_SETTINGS_MODULE'] = 'nk_foodcourt.settings'
+
+from django.core.wsgi import get_wsgi_application
+application = get_wsgi_application()

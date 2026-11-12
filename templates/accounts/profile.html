@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block title %}My profile · N.K. Food Court{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Your N.K. account</p><h1>My profile</h1></div><a class="btn btn-secondary" href="{% url 'accounts:profile_edit' %}">Edit profile</a></div>
+<div class="card form-card"><span class="badge">Food court member</span><h2>{{ user.get_full_name|default:user.username }}</h2><dl><dt>Username</dt><dd>{{ user.username }}</dd><dt>Email</dt><dd>{{ user.email|default:'Not provided' }}</dd><dt>Mobile</dt><dd>{{ user.profile.mobile|default:'Not provided' }}</dd></dl><div class="inline-actions"><a class="btn btn-outline" href="{% url 'accounts:password_change' %}">Change password</a><a class="btn btn-primary" href="{% url 'groups:list' %}">My dining groups</a></div></div>
+{% endblock %}
