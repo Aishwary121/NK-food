@@ -2,6 +2,10 @@
 
 A Django application for restaurant ordering, group dining, precise bill splitting and manually verified UPI payments. The backend uses Django authentication, Forms, the ORM and server-rendered templates. SQLite is the default database; PostgreSQL can be configured through environment variables.
 
+**Live application:** [N.K. Food Court on PythonAnywhere](https://aishwary123321.pythonanywhere.com/) · **Source:** [Aishwary121/NK-food](https://github.com/Aishwary121/NK-food).
+
+The hosted academic demonstration uses PythonAnywhere's Python 3.11 WSGI service, HTTPS, persistent SQLite/media directories and protected collector QR delivery. Its report fixtures use unique credentials and the fictional receiver `report-demo@example`, labelled **Report Demo - Do Not Pay**. These records demonstrate the workflow and do not represent bank transfers. Public development passwords below do not apply to the hosted accounts. The free host requires monthly renewal from its Web dashboard; the initial renewal date is 12 December 2026.
+
 ## Run locally on Windows
 
 Install Python 3.11 or later from [python.org](https://www.python.org/downloads/windows/), including the Python launcher. Open PowerShell in this project directory.
@@ -163,6 +167,8 @@ For a focused payment run:
 ```
 
 ## Configuration and deployment
+
+See [deployment instructions](docs/DEPLOYMENT.md) for the PythonAnywhere setup helper, durable data paths, HTTPS configuration and Linux deployment alternatives. `deploy/prepare_report_demo.py` is a separate, explicit report-fixture helper; normal deployment only loads menu data. The report helper refuses to alter existing demonstration usernames and never prints its generated login passwords.
 
 `.env.example` documents the supported environment variables. **Django does not automatically read a `.env` file in this project.** Set these in PowerShell or your hosting platform's environment. Local development needs no credentials.
 
