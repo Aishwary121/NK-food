@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Payment, PaymentAudit, PaymentQRSettings
+from .models import CounterPayment, Payment, PaymentAudit, PaymentQRSettings
 
 class LedgerReadOnlyAdmin(admin.ModelAdmin):
     """Administrators use the collector dashboard, so reviews always create audit events."""
@@ -27,3 +27,8 @@ class AuditAdmin(LedgerReadOnlyAdmin):
 @admin.register(PaymentQRSettings)
 class SettingsAdmin(LedgerReadOnlyAdmin):
     list_display = ['order', 'display_name', 'preferred_method', 'updated_at']
+
+
+@admin.register(CounterPayment)
+class CounterPaymentAdmin(LedgerReadOnlyAdmin):
+    list_display = ['order', 'amount', 'recorded_by', 'recorded_at', 'reference']

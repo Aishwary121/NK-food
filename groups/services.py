@@ -16,6 +16,7 @@ def create_group(*, owner, name, max_members=4, description=''):
 
 @transaction.atomic
 def join_group(*, user, code):
+    from orders.services import sync_equal_item_allocations
     try:
         group = DiningGroup.objects.select_for_update().get(code=code.strip().upper())
     except DiningGroup.DoesNotExist:
@@ -27,7 +28,9 @@ def join_group(*, user, code):
         raise ValidationError('This group is no longer accepting members.')
     if group.memberships.count() >= group.max_members:
         raise ValidationError('This dining group is full.')
-    return Membership.objects.create(group=group, user=user)
+    member = Membership.objects.create(group=group, user=user)
+    sync_equal_item_allocations(group.order)
+    return member
 
 
 def require_owner(group, actor):
@@ -69,6 +72,8 @@ def set_collector(*, group, actor, membership):
     membership = group.memberships.select_related('user').filter(pk=membership.pk).first()
     if membership is None:
         raise ValidationError('The collector must be a member of the group.')
+    if order.split_policy == Order.SplitPolicy.EQUAL and membership.user_id != group.owner_id:
+        raise ValidationError('The host pays the restaurant bill and collects the other members\' shares. The host must remain the payment collector.')
     if group.collector_id == membership.user_id:
         return
     config = PaymentQRSettings.objects.filter(order=order).first()
@@ -85,17 +90,23 @@ def set_collector(*, group, actor, membership):
 
 @transaction.atomic
 def leave_group(*, group, user):
+    from orders.models import Order
+    from orders.services import sync_equal_item_allocations
     group = DiningGroup.objects.select_for_update().get(pk=group.pk)
     if not group.is_open:
         raise ValidationError('You cannot leave after finalization.')
     if user.pk in (group.owner_id, group.collector_id):
         raise ValidationError('The organizer and collector must stay in the group.')
     member = group.memberships.get(user=user)
-    if member.item_allocations.exists() or group.order.items.filter(added_by=user).exists():
+    order = Order.objects.select_for_update().get(group=group)
+    if order.items.filter(added_by=user).exists() or (order.split_policy != Order.SplitPolicy.EQUAL and member.item_allocations.exists()):
         raise ValidationError('Remove or reassign your ordered food before leaving.')
+    if order.split_policy == Order.SplitPolicy.EQUAL:
+        member.item_allocations.filter(order_item__order=order).delete()
     if member.pair_id:
         Pair.objects.filter(pk=member.pair_id).delete()
     member.delete()
+    sync_equal_item_allocations(order)
 
 
 @transaction.atomic
@@ -115,19 +126,26 @@ def cancel_group(*, group, actor):
 @transaction.atomic
 def complete_group(*, group, actor):
     from orders.models import Order
-    from payments.models import Payment, PaymentAudit
+    from payments.models import CounterPayment, Payment, PaymentAudit
     group = DiningGroup.objects.select_for_update().get(pk=group.pk)
     if actor.pk not in (group.owner_id, group.collector_id) and not actor.is_staff:
         raise PermissionDenied('Only the organizer, collector or an administrator can complete this group.')
     order = Order.objects.select_for_update().get(group=group)
     if group.status != DiningGroup.Status.FINALIZED or order.status != Order.Status.FINALIZED:
         raise ValidationError('Only a finalized group can be completed.')
+    if order.split_policy == 'EQUAL' and actor.pk != group.owner_id and not actor.is_staff:
+        raise PermissionDenied('Only the host or an administrator can complete this equal-split group.')
     if not order.allocations.exists():
         raise ValidationError('This order has no finalized member bills.')
     payable = order.allocations.filter(amount__gt=0)
+    if order.split_policy == 'EQUAL':
+        if not CounterPayment.objects.filter(order=order).exists():
+            raise ValidationError('The host must record paying the full restaurant bill at the counter first.')
+        payable = payable.exclude(member__user_id=group.owner_id)
     if payable.exclude(payment__status=Payment.Status.VERIFIED).exists():
         raise ValidationError('Every payable member share must be verified before completing the group.')
     group.status = DiningGroup.Status.COMPLETED
     group.save(update_fields=['status'])
     PaymentAudit.objects.create(order=order, actor=actor, action='GROUP_COMPLETED',
-                                detail='All positive member allocations were verified before completion.')
+                                detail=('Full counter payment declared and all positive member transfers verified.'
+                                        if order.split_policy == 'EQUAL' else 'All positive member allocations were verified before completion.'))

@@ -13,8 +13,8 @@ from django.urls import reverse
 from groups.models import DiningGroup, Membership
 from orders.models import BillAllocation, Order
 from .forms import QRSettingsForm
-from .models import Payment, PaymentAudit, PaymentQRSettings
-from .services import build_upi_uri, generate_qr_png, get_payment, payment_totals, review_payment, save_qr_settings, submit_payment
+from .models import CounterPayment, Payment, PaymentAudit, PaymentQRSettings
+from .services import build_upi_uri, generate_qr_png, get_payment, payment_totals, record_counter_payment, review_payment, save_qr_settings, submit_payment
 from .validators import validate_upi_id
 
 try:
@@ -38,7 +38,7 @@ class PaymentTests(TestCase):
         cls.group = DiningGroup.objects.create(name='Dinner', owner=cls.rahul, collector=cls.rahul, status='FINALIZED')
         cls.rmember = Membership.objects.create(group=cls.group, user=cls.rahul)
         cls.amember = Membership.objects.create(group=cls.group, user=cls.aman)
-        cls.order = Order.objects.create(group=cls.group, status='FINALIZED', subtotal='283.00', total='283.00')
+        cls.order = Order.objects.create(group=cls.group, split_policy='ITEMIZED', status='FINALIZED', subtotal='283.00', total='283.00')
         cls.rahul_share = BillAllocation.objects.create(order=cls.order, member=cls.rmember, amount='175.50')
         cls.aman_share = BillAllocation.objects.create(order=cls.order, member=cls.amember, amount='107.50')
         cls.config = PaymentQRSettings.objects.create(order=cls.order, upi_id='collector@bank', display_name='Rahul & Friends', preferred_method='DYNAMIC')
@@ -355,8 +355,185 @@ class PaymentTests(TestCase):
         response = self.client.get(url)
         self.assertContains(response, 'No further payment needed')
         self.assertNotContains(response, 'Three steps to settle up')
+
         BillAllocation.objects.filter(pk=self.rahul_share.pk).update(amount='0.00')
         self.client.force_login(self.rahul)
         response = self.client.get(reverse('payments:member', args=[self.rahul_share.pk]))
         self.assertContains(response, 'No payment due')
         self.assertNotContains(response, 'Three steps to settle up')
+
+
+class HostCollectionTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        users = get_user_model()
+        cls.host = users.objects.create_user('host', password='Host-test-123')
+        cls.friend = users.objects.create_user('friend', password='Host-test-123')
+        cls.outsider = users.objects.create_user('other', password='Host-test-123')
+        cls.admin = users.objects.create_user('staff', password='Host-test-123', is_staff=True)
+        cls.group = DiningGroup.objects.create(name='Equal dinner', owner=cls.host, collector=cls.host, status='FINALIZED')
+        cls.host_member = Membership.objects.create(group=cls.group, user=cls.host)
+        cls.friend_member = Membership.objects.create(group=cls.group, user=cls.friend)
+        cls.order = Order.objects.create(group=cls.group, split_policy='EQUAL', status='FINALIZED', subtotal='300.00', total='300.00')
+        cls.host_share = BillAllocation.objects.create(order=cls.order, member=cls.host_member, amount='150.00')
+        cls.friend_share = BillAllocation.objects.create(order=cls.order, member=cls.friend_member, amount='150.00')
+        cls.config = PaymentQRSettings.objects.create(order=cls.order, upi_id='host@bank', display_name='Host', preferred_method='DYNAMIC')
+
+    def test_member_qr_uses_host_and_equal_allocation(self):
+        params = parse_qs(urlparse(build_upi_uri(self.friend_share)).query)
+        self.assertEqual(params['pa'], ['host@bank'])
+        self.assertEqual(params['am'], ['150.00'])
+        self.client.force_login(self.friend)
+        response = self.client.get(reverse('payments:member', args=[self.friend_share.pk]))
+        self.assertContains(response, '150.00')
+        self.assertContains(response, 'upi://pay?')
+        self.assertEqual(get_payment(self.friend_share).status, 'UNPAID')
+
+    def test_host_has_no_self_payment_qr_or_claim(self):
+        with self.assertRaises(ValidationError):
+            build_upi_uri(self.host_share)
+        with self.assertRaises(ValidationError):
+            submit_payment(self.host_share.pk, self.host)
+        self.client.force_login(self.host)
+        url = reverse('payments:qr', args=[self.host_share.pk])
+        for method in ['STATIC', 'DYNAMIC']:
+            self.assertEqual(self.client.get(url, {'method': method}).status_code, 404)
+        response = self.client.get(reverse('payments:member', args=[self.host_share.pk]))
+        self.assertTrue(response.context['is_host_allocation'])
+        self.assertFalse(response.context['can_submit'])
+        self.assertFalse(response.context['ready'])
+        self.assertEqual(response.context['upi_uri'], '')
+        self.assertFalse(Payment.objects.filter(allocation=self.host_share).exists())
+
+    def test_counter_record_uses_whole_bill_and_does_not_verify_members(self):
+        self.order.total = Decimal('0.01')  # Caller objects cannot override the database.
+        record = record_counter_payment(self.order.pk, self.host, '  COUNTER-RECEIPT  ')
+        self.assertEqual(record.amount, Decimal('300.00'))
+        self.assertEqual(record.recorded_by, self.host)
+        self.assertEqual(record.reference, 'COUNTER-RECEIPT')
+        self.assertFalse(Payment.objects.filter(allocation=self.host_share).exists())
+        self.assertEqual(get_payment(self.friend_share).status, 'UNPAID')
+        event = PaymentAudit.objects.get(order=self.order, action='COUNTER_PAYMENT_DECLARED')
+        self.assertEqual(event.actor, self.host)
+        self.assertIn('not bank verification', event.detail)
+
+    def test_only_host_or_admin_can_declare_counter_payment(self):
+        for actor in [self.friend, self.outsider]:
+            with self.assertRaises(PermissionDenied):
+                record_counter_payment(self.order.pk, actor)
+        record = record_counter_payment(self.order.pk, self.admin)
+        self.assertEqual(record.recorded_by, self.admin)
+
+    def test_counter_record_duplicate_draft_and_legacy_rejected(self):
+        Order.objects.filter(pk=self.order.pk).update(status='DRAFT')
+        with self.assertRaises(ValidationError):
+            record_counter_payment(self.order.pk, self.host)
+        Order.objects.filter(pk=self.order.pk).update(status='FINALIZED', split_policy='ITEMIZED')
+        with self.assertRaises(ValidationError):
+            record_counter_payment(self.order.pk, self.host)
+        Order.objects.filter(pk=self.order.pk).update(split_policy='EQUAL')
+        record_counter_payment(self.order.pk, self.host)
+        with self.assertRaises(ValidationError):
+            record_counter_payment(self.order.pk, self.host, 'SECOND')
+        self.assertEqual(CounterPayment.objects.filter(order=self.order).count(), 1)
+        self.assertEqual(PaymentAudit.objects.filter(action='COUNTER_PAYMENT_DECLARED').count(), 1)
+
+    def test_counter_http_requires_post_csrf_and_explicit_confirmation(self):
+        url = reverse('payments:counter_paid', args=[self.order.pk])
+        self.client.force_login(self.host)
+        self.assertEqual(self.client.get(url).status_code, 405)
+        secure = Client(enforce_csrf_checks=True)
+        secure.force_login(self.host)
+        self.assertEqual(secure.post(url, {'confirm': 'on'}).status_code, 403)
+        self.assertEqual(self.client.post(url, {'reference': 'NO-CONFIRM'}).status_code, 302)
+        self.assertFalse(CounterPayment.objects.filter(order=self.order).exists())
+        self.client.force_login(self.friend)
+        self.assertEqual(self.client.post(url, {'confirm': 'on'}).status_code, 403)
+        self.client.force_login(self.host)
+        self.assertEqual(self.client.post(url, {'confirm': 'on', 'amount': '0.01', 'reference': 'COUNTER'}).status_code, 302)
+        self.assertEqual(CounterPayment.objects.get(order=self.order).amount, Decimal('300.00'))
+
+    def test_totals_exclude_host_and_pending_is_not_completed(self):
+        totals = payment_totals(self.order)
+        self.assertEqual(totals['total'], Decimal('300.00'))
+        self.assertEqual(totals['host_share'], Decimal('150.00'))
+        self.assertEqual(totals['member_due'], Decimal('150.00'))
+        self.assertEqual(totals['outstanding'], Decimal('150.00'))
+        self.assertEqual(totals['member_count'], 1)
+        host_row = next(row for row in totals['rows'] if row['is_host'])
+        self.assertIsNone(host_row['payment'])
+        self.assertEqual(host_row['status_code'], 'OWN_SHARE')
+        payment = submit_payment(self.friend_share.pk, self.friend, 'MEMBER-CLAIM')
+        record_counter_payment(self.order.pk, self.host)
+        totals = payment_totals(self.order)
+        self.assertEqual(totals['received'], Decimal('0.00'))
+        self.assertEqual(totals['pending_verification'], Decimal('150.00'))
+        self.assertEqual(totals['completed_count'], 0)
+        self.assertEqual(totals['pending_count'], 1)
+        self.assertEqual(next(row for row in totals['rows'] if row['is_host'])['status_code'], 'COUNTER_RECORDED')
+        review_payment(payment.pk, self.host, 'REJECTED', 'Not received')
+        self.assertEqual(payment_totals(self.order)['rejected_count'], 1)
+        payment = submit_payment(self.friend_share.pk, self.friend, 'CORRECTED')
+        review_payment(payment.pk, self.host, 'VERIFIED')
+        totals = payment_totals(self.order)
+        self.assertEqual(totals['received'], Decimal('150.00'))
+        self.assertEqual(totals['outstanding'], Decimal('0.00'))
+        self.assertEqual(totals['completed_count'], 1)
+        self.assertEqual(totals['pending_count'], 0)
+        self.assertFalse(Payment.objects.filter(allocation=self.host_share).exists())
+
+    def test_unrelated_collector_cannot_control_equal_order(self):
+        DiningGroup.objects.filter(pk=self.group.pk).update(collector=self.friend)
+        payment = submit_payment(self.friend_share.pk, self.friend)
+        with self.assertRaises(PermissionDenied):
+            review_payment(payment.pk, self.friend, 'VERIFIED')
+        self.assertEqual(review_payment(payment.pk, self.host, 'VERIFIED').status, 'VERIFIED')
+
+    def test_host_payment_cannot_be_verified_even_if_forged_row_exists(self):
+        payment = Payment.objects.create(allocation=self.host_share, status='PENDING')
+        with self.assertRaises(ValidationError):
+            review_payment(payment.pk, self.host, 'VERIFIED')
+        # The irrelevant self-transfer row must not block configuring member collection.
+        save_qr_settings(self.order.pk, self.host, {
+            'upi_id': 'host@bank', 'display_name': 'Host', 'preferred_method': 'DYNAMIC',
+        })
+        self.client.force_login(self.host)
+        response = self.client.get(reverse('payments:settings', args=[self.order.pk]))
+        self.assertEqual(response.context['preview'].pk, self.friend_share.pk)
+        self.assertFalse(response.context['settings_locked'])
+
+    def test_group_completion_requires_counter_and_verified_member_transfers(self):
+        from groups.services import complete_group
+        payment = submit_payment(self.friend_share.pk, self.friend)
+        with self.assertRaises(ValidationError):
+            complete_group(group=self.group, actor=self.host)
+        record_counter_payment(self.order.pk, self.host)
+        with self.assertRaises(ValidationError):
+            complete_group(group=self.group, actor=self.host)
+        with self.assertRaises(PermissionDenied):
+            complete_group(group=self.group, actor=self.friend)
+        review_payment(payment.pk, self.host, 'VERIFIED')
+        complete_group(group=self.group, actor=self.host)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.status, 'COMPLETED')
+        self.assertFalse(Payment.objects.filter(allocation=self.host_share).exists())
+
+    def test_verified_member_transfer_alone_cannot_complete_group(self):
+        from groups.services import complete_group
+        payment = submit_payment(self.friend_share.pk, self.friend)
+        review_payment(payment.pk, self.host, 'VERIFIED')
+        with self.assertRaises(ValidationError):
+            complete_group(group=self.group, actor=self.host)
+
+    def test_one_person_group_only_needs_counter_declaration(self):
+        from groups.services import complete_group
+        self.friend_share.delete()
+        self.friend_member.delete()
+        BillAllocation.objects.filter(pk=self.host_share.pk).update(amount='300.00')
+        totals = payment_totals(self.order)
+        self.assertEqual(totals['member_due'], Decimal('0.00'))
+        self.assertEqual(totals['member_count'], 0)
+        record_counter_payment(self.order.pk, self.host)
+        complete_group(group=self.group, actor=self.host)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.status, 'COMPLETED')

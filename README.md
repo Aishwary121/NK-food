@@ -98,16 +98,19 @@ The UPI field meanings are described in [Google Pay for India's payment request 
 
 ## Bill splitting
 
-All money uses `Decimal` and database `DecimalField`s. The independent service in `orders/services.py` supports:
+New groups and existing draft orders divide the **entire final bill equally across every member, including the host**. A ₹300 bill for two members is ₹150 each, irrespective of who added the food. Joins and departures update draft shares; finalization locks the amounts used for payment.
 
-- Equal shares across selected members, a pair, or the group.
-- Quantity-based shares for items such as rotis.
-- Explicit custom amounts or percentages.
-- Assigning the whole item to one person.
+All money uses `Decimal` and database `DecimalField`s. The grand total (food + tax − discount) is split once in integer paise. Remainder paise go deterministically by membership ID, so ₹100 across three members is ₹33.34, ₹33.33 and ₹33.33; no shares differ by more than one paisa. Individual item rounding cannot accumulate into an unequal final bill. Only quantities can be changed in equal-split orders; the browser cannot exclude a member or choose a different split mode.
 
-Rounding distributes remaining paise deterministically so each item's allocations sum exactly to its subtotal. Item names and unit prices are snapshotted into the order, preserving old receipts when the menu changes. Finalization persists the member allocations used by payments. The consolidated kitchen view combines dishes while preserving the underlying member and pair records. Allocation changes are audited.
+The **host pays the full restaurant bill at the counter** and records that declaration separately. Other members pay their exact shares to the host's configured UPI account. The host sees each member's unpaid, pending verification, completed or rejected status, plus collection totals that exclude the host's own share. The host never transfers money to themselves. Recording a counter payment does not verify a bank transfer or complete members' claims. The group can be completed after the counter declaration and verification of every positive member reimbursement.
+
+Previously finalized bills and the original ₹437 report fixture retain their item-based allocations and original collector. The service retains quantity/custom/percentage splitting only for this historical mode. New customer groups always use equal sharing. Migration `orders.0002_equal_split_policy` upgrades drafts, makes the host their collector and clears any previous collector's receiving settings when ownership changes. It never recalculates finalized amounts or marks a payment paid.
+
+Item names and unit prices are snapshotted into the order, preserving old receipts when the menu changes. Finalization persists the member allocations used by payments. The consolidated kitchen view combines dishes. Allocation changes, counter declarations and payment reviews are audited.
 
 Tax and discount are explicit order amounts; no jurisdiction-specific tax rate is assumed. Review their values before finalization. Changing a finalized order through ordinary customer forms is blocked.
+
+For the existing PythonAnywhere SQLite deployment, `~/.virtualenvs/nk-food/bin/python deploy/upgrade_equal_split.py ~/.nk-food-environment.json` creates a private database backup, migrates, verifies unchanged historical allocations and equal draft totals, collects static assets and runs deployment checks. Reload the web app after the command passes.
 
 ## Menu and images
 

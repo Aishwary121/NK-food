@@ -77,6 +77,11 @@ class QRSettingsForm(forms.Form):
 class PaymentClaimForm(forms.Form):
     reference = forms.CharField(max_length=80, required=False, label='UPI transaction reference (optional)', help_text='Share only the transaction reference. Do not enter a UPI PIN or banking credentials.')
 
+
+class CounterPaymentForm(forms.Form):
+    reference = forms.CharField(max_length=80, required=False, label='Counter receipt or transaction reference (optional)')
+    confirm = forms.BooleanField(label='I confirm that the full bill has been paid at the restaurant counter.', help_text='Record this only after paying. This is a declaration, not an automatic bank confirmation.')
+
 class PaymentReviewForm(forms.Form):
     decision = forms.ChoiceField(choices=[('VERIFIED', 'Verify'), ('REJECTED', 'Reject')])
     reason = forms.CharField(max_length=300, required=False)

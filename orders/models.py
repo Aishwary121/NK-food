@@ -14,9 +14,14 @@ class Order(models.Model):
         DRAFT = 'DRAFT', 'In progress'
         FINALIZED = 'FINALIZED', 'Finalized'
 
+    class SplitPolicy(models.TextChoices):
+        EQUAL = 'EQUAL', 'Equal across all members'
+        ITEMIZED = 'ITEMIZED', 'Original item-based allocation'
+
     group = models.OneToOneField('groups.DiningGroup', on_delete=models.PROTECT, related_name='order')
     number = models.CharField(max_length=24, unique=True, default=order_number, editable=False)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
+    split_policy = models.CharField(max_length=10, choices=SplitPolicy.choices, default=SplitPolicy.EQUAL, editable=False)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     tax = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     discount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])

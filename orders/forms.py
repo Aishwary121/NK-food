@@ -1,6 +1,6 @@
 from django import forms
 from groups.models import Membership
-from .models import OrderItem
+from .models import Order, OrderItem
 
 
 class SplitForm(forms.Form):
@@ -12,6 +12,13 @@ class SplitForm(forms.Form):
     def __init__(self, *args, item, **kwargs):
         super().__init__(*args, **kwargs)
         members = item.order.group.memberships.select_related('user', 'pair')
+        self.equal_bill = item.order.split_policy == Order.SplitPolicy.EQUAL
+        self.all_member_ids = list(members.values_list('pk', flat=True))
+        self.fields['quantity'].initial = item.quantity
+        if self.equal_bill:
+            del self.fields['mode']
+            del self.fields['members']
+            return
         self.fields['members'].queryset = members
         self.fields['quantity'].initial = item.quantity
         self.fields['mode'].initial = item.split_mode
@@ -32,6 +39,12 @@ class SplitForm(forms.Form):
 
     def clean(self):
         data = super().clean()
+        if self.equal_bill:
+            if self.data.get('mode') not in (None, '', OrderItem.SplitMode.EQUAL):
+                raise forms.ValidationError('This bill is shared equally by every member. Only the quantity can be changed.')
+            data['mode'] = OrderItem.SplitMode.EQUAL
+            data['values'] = dict.fromkeys(self.all_member_ids, 1)
+            return data
         selected = data.get('members')
         if selected is None or not data.get('mode'):
             return data

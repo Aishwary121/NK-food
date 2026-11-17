@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from django.db import models
 from .storage import private_qr_storage, qr_upload_path
 from .validators import validate_upi_id
@@ -57,3 +58,22 @@ class PaymentAudit(models.Model):
 
     def __str__(self):
         return f'{self.action} — {self.created_at}'
+
+
+class CounterPayment(models.Model):
+    """Host's explicit declaration, not bank or restaurant verification.
+
+    This records the whole counter bill separately from member reimbursements.
+    Application services create it once from the finalized order total.
+    """
+    order = models.OneToOneField('orders.Order', on_delete=models.PROTECT, related_name='counter_payment')
+    amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='counter_payment_declarations')
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    reference = models.CharField(max_length=80, blank=True)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=models.Q(amount__gte=0), name='nonnegative_counter_payment')]
+
+    def __str__(self):
+        return f'{self.order.number} — counter payment declared'

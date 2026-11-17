@@ -6,9 +6,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from orders.models import BillAllocation, Order
-from .forms import PaymentClaimForm, PaymentReviewForm, QRSettingsForm
-from .models import Payment, PaymentQRSettings
-from .services import build_upi_uri, generate_qr_png, get_payment, is_collector, payment_totals, require_collector, review_payment, save_qr_settings, submit_payment
+from .forms import CounterPaymentForm, PaymentClaimForm, PaymentReviewForm, QRSettingsForm
+from .models import CounterPayment, Payment, PaymentQRSettings
+from .services import build_upi_uri, collection_payments, generate_qr_png, get_payment, is_collector, is_host_allocation, payment_totals, record_counter_payment, require_collector, review_payment, save_qr_settings, submit_payment
 
 def _allocation_for_user(pk, user):
     allocation = get_object_or_404(BillAllocation.objects.select_related('order__group__collector', 'member__user'), pk=pk, order__status='FINALIZED')
@@ -28,6 +28,7 @@ def collector(request, pk):
     order = _collector_order(pk, request.user)
     return render(request, 'payments/collector.html', {
         'order': order, 'config': PaymentQRSettings.objects.filter(order=order).first(),
+        'counter_form': CounterPaymentForm(),
         'audit': order.payment_audit.select_related('actor', 'payment__allocation__member__user')[:100],
         **payment_totals(order),
     })
@@ -47,8 +48,11 @@ def settings_view(request, pk):
         else:
             messages.success(request, 'Payment QR settings saved.')
             return redirect('payments:settings', pk=pk)
-    preview = order.allocations.filter(amount__gt=0).select_related('member__user').first() if order.status == 'FINALIZED' else None
-    locked = Payment.objects.filter(allocation__order=order, status__in=['PENDING', 'VERIFIED']).exists()
+    preview_allocations = order.allocations.filter(amount__gt=0).select_related('member__user')
+    if order.split_policy == 'EQUAL':
+        preview_allocations = preview_allocations.exclude(member__user_id=order.group.owner_id)
+    preview = preview_allocations.first() if order.status == 'FINALIZED' else None
+    locked = collection_payments(order).filter(status__in=['PENDING', 'VERIFIED']).exists()
     return render(request, 'payments/settings.html', {'order': order, 'config': config, 'form': form, 'preview': preview, 'settings_locked': locked})
 
 @login_required
@@ -56,7 +60,8 @@ def settings_view(request, pk):
 @require_http_methods(['GET', 'POST'])
 def member(request, pk):
     allocation = _allocation_for_user(pk, request.user)
-    payment = get_payment(allocation)
+    host_share = is_host_allocation(allocation)
+    payment = None if host_share else get_payment(allocation)
     config = PaymentQRSettings.objects.filter(order=allocation.order).first()
     form = PaymentClaimForm(request.POST if request.method == 'POST' else None)
     if request.method == 'POST' and form.is_valid():
@@ -68,17 +73,19 @@ def member(request, pk):
             messages.info(request, 'Payment submitted for verification. The collector will check receipt before verifying it.')
             return redirect('payments:member', pk=pk)
     uri = ''
-    if config and config.upi_id and allocation.amount > 0:
+    if not host_share and config and config.upi_id and allocation.amount > 0:
         try:
             uri = build_upi_uri(allocation)
         except ValidationError:
             pass
     method = config.preferred_method if config else ''
-    ready = allocation.amount > 0 and bool(config and ((method == 'STATIC' and config.static_qr) or (method == 'DYNAMIC' and uri)))
+    ready = not host_share and allocation.amount > 0 and bool(config and ((method == 'STATIC' and config.static_qr) or (method == 'DYNAMIC' and uri)))
     return render(request, 'payments/member.html', {
         'allocation': allocation, 'order': allocation.order, 'payment': payment,
         'config': config, 'form': form, 'upi_uri': uri, 'ready': ready,
-        'can_submit': allocation.member.user_id == request.user.pk and payment.status in ['UNPAID', 'REJECTED'] and ready,
+        'is_host_share': host_share, 'is_host_allocation': host_share,
+        'counter_payment': CounterPayment.objects.filter(order=allocation.order).first(),
+        'can_submit': not host_share and allocation.member.user_id == request.user.pk and payment.status in ['UNPAID', 'REJECTED'] and ready,
     })
 
 @login_required
@@ -86,6 +93,8 @@ def member(request, pk):
 @require_GET
 def qr(request, pk):
     allocation = _allocation_for_user(pk, request.user)
+    if is_host_allocation(allocation):
+        raise Http404('The host pays at the counter; no transfer to themselves is needed.')
     config = get_object_or_404(PaymentQRSettings, order=allocation.order)
     # A collector can preview either configured method. Amounts/receiver values
     # in query strings are deliberately never read.
@@ -140,3 +149,21 @@ def review(request, pk):
     else:
         messages.error(request, ' '.join(message for errors in form.errors.values() for message in errors))
     return redirect('payments:collector', pk=payment.allocation.order_id)
+
+
+@login_required
+@never_cache
+@require_POST
+def counter_paid(request, pk):
+    order = _collector_order(pk, request.user)
+    form = CounterPaymentForm(request.POST)
+    if form.is_valid():
+        try:
+            record_counter_payment(order.pk, request.user, form.cleaned_data['reference'])
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+        else:
+            messages.success(request, 'Full counter payment recorded as declared. Member transfers still require separate verification.')
+    else:
+        messages.error(request, ' '.join(message for errors in form.errors.values() for message in errors))
+    return redirect('payments:collector', pk=order.pk)

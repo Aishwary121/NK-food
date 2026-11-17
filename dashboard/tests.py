@@ -22,3 +22,32 @@ class DashboardPermissionsTests(TestCase):
         self.assertEqual(response.context["sales_total"], 0)
         self.assertEqual(response.context["verified_total"], 0)
 
+    def test_host_counter_total_is_separate_from_member_reimbursements(self):
+        from decimal import Decimal
+        from groups.services import create_group, join_group
+        from orders.models import BillAllocation
+        from payments.models import CounterPayment, Payment
+        User = get_user_model()
+        host = User.objects.create_user('counter-host', is_staff=True)
+        friend = User.objects.create_user('counter-friend')
+        group = create_group(owner=host, name='Equal bill')
+        member = join_group(user=friend, code=group.code)
+        order = group.order
+        order.status, order.total = 'FINALIZED', Decimal('300.00')
+        order.save()
+        BillAllocation.objects.create(order=order, member=group.memberships.get(user=host), amount='150.00')
+        due = BillAllocation.objects.create(order=order, member=member, amount='150.00')
+        payment = Payment.objects.create(allocation=due, status='PENDING')
+        CounterPayment.objects.create(order=order, recorded_by=host, amount='300.00')
+        self.client.force_login(host)
+        response = self.client.get(reverse('dashboard:home'))
+        self.assertEqual(response.context['sales_total'], Decimal('300.00'))
+        self.assertEqual(response.context['counter_declared_total'], Decimal('300.00'))
+        self.assertEqual(response.context['pending_total'], Decimal('150.00'))
+        self.assertEqual(response.context['verified_total'], Decimal('0.00'))
+        payment.status = 'VERIFIED'
+        payment.save()
+        response = self.client.get(reverse('dashboard:home'))
+        self.assertEqual(response.context['verified_total'], Decimal('150.00'))
+        self.assertEqual(response.context['pending_total'], Decimal('0.00'))
+

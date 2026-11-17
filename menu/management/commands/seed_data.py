@@ -103,6 +103,7 @@ class Command(BaseCommand):
         """Build the demo through the same authorization and allocation services as the UI."""
         from groups.models import DiningGroup
         from groups.services import create_group, form_pair, join_group
+        from orders.models import Order
         from orders.services import add_to_cart, change_allocation, finalize_order, submit_cart
 
         users = {name: get_user_model().objects.get(username=name) for name in ("rahul", "aman", "rohit", "karan")}
@@ -110,6 +111,10 @@ class Command(BaseCommand):
         demo_name = "Lunch at N.K. — sample bill"
         if not DiningGroup.objects.filter(owner=owner, name=demo_name).exists():
             group = create_group(owner=owner, name=demo_name, max_members=4, description="A sample shared lunch: count the rotis, share the curries, and pay your own drinks.")
+            # Keep the original published report fixture as a historical bill.
+            # Every ordinary newly created group uses the equal-split default.
+            Order.objects.filter(group=group).update(split_policy=Order.SplitPolicy.ITEMIZED)
+            group.order.refresh_from_db()
             for name in ("aman", "rohit", "karan"):
                 join_group(user=users[name], code=group.code)
             members = {m.user.username: m for m in group.memberships.select_related("user")}

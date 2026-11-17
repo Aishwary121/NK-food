@@ -136,6 +136,21 @@ def save_item_allocations(item, amounts, values):
     ])
 
 
+def sync_equal_item_allocations(order):
+    """Refresh draft item detail after membership changes, under the group lock.
+
+    Item amounts describe food only. The final bill is split once from the grand
+    total, so per-item remainder paise never accumulate into an unequal bill.
+    """
+    if order.status != Order.Status.DRAFT or order.split_policy != Order.SplitPolicy.EQUAL:
+        return
+    values = dict.fromkeys(order.group.memberships.values_list('pk', flat=True), 1)
+    for item in order.items.all():
+        item.split_mode = OrderItem.SplitMode.EQUAL
+        item.save(update_fields=['split_mode'])
+        save_item_allocations(item, distribute(item.subtotal, values), values)
+
+
 @transaction.atomic
 def add_to_cart(*, group_id, actor, menu_item, quantity=1):
     group = DiningGroup.objects.select_for_update().get(pk=group_id)
@@ -186,7 +201,10 @@ def submit_cart(*, order_id, actor):
             raise ValidationError(f'{food.name} is no longer available. Remove it from your cart.')
         category_name = food.category.name.lower()
         shared = member.pair_id and any(word in category_name for word in ('paneer special', 'dal & sabzi', 'main course'))
-        if shared:
+        if order.split_policy == Order.SplitPolicy.EQUAL:
+            participants = list(group.memberships.values_list('pk', flat=True))
+            mode = OrderItem.SplitMode.EQUAL
+        elif shared:
             participants = list(group.memberships.filter(pair_id=member.pair_id).values_list('pk', flat=True))
             mode = OrderItem.SplitMode.EQUAL
         else:
@@ -217,7 +235,12 @@ def change_allocation(*, item_id, actor, quantity, mode, values):
     all_members = set(group.memberships.values_list('pk', flat=True))
     if not participant_ids <= all_members:
         raise ValidationError('All participants must belong to this dining group.')
-    if actor.pk != group.owner_id:
+    if order.split_policy == Order.SplitPolicy.EQUAL:
+        if mode != OrderItem.SplitMode.EQUAL:
+            raise ValidationError('This bill is shared equally by every group member. Only the quantity can be changed.')
+        # Do not let omitted members or forged weights change who pays.
+        values = dict.fromkeys(all_members, 1)
+    elif actor.pk != group.owner_id:
         permitted = {member.pk}
         if member.pair_id:
             permitted.update(group.memberships.filter(pair_id=member.pair_id).values_list('pk', flat=True))
@@ -262,7 +285,17 @@ def set_adjustments(*, order_id, actor, tax, discount):
 
 
 def bill_breakdown(order):
+    if order.status == Order.Status.FINALIZED:
+        # Final payment amounts are immutable snapshots, including older bills.
+        return [{'member': row.member, 'amount': row.amount}
+                for row in order.allocations.select_related('member__user').order_by('member_id')]
     members = list(order.group.memberships.select_related('user'))
+    if order.split_policy == Order.SplitPolicy.EQUAL:
+        weights = {member.pk: 1 for member in members}
+        amounts = distribute(order.total, weights)
+        food = distribute(order.subtotal, weights)
+        return [{'member': member, 'food_amount': food[member.pk], 'amount': amounts[member.pk]}
+                for member in members]
     base = {member.pk: Decimal('0.00') for member in members}
     for allocation in ItemAllocation.objects.filter(order_item__order=order):
         if allocation.member_id not in base:
@@ -282,6 +315,8 @@ def finalize_order(*, order_id, actor):
     order, group = locked_order(order_id)
     if actor.pk != group.owner_id:
         raise PermissionDenied('Only the organizer can finalize the order.')
+    if order.split_policy == Order.SplitPolicy.EQUAL and group.collector_id != group.owner_id:
+        raise ValidationError('The host must collect member payments for an equally shared bill.')
     if not group.memberships.filter(user=group.collector).exists():
         raise ValidationError('Choose a payment collector who belongs to this group.')
     if CartItem.objects.filter(member__group=group).exists():
@@ -291,6 +326,10 @@ def finalize_order(*, order_id, actor):
     if order.allocations.exists():
         raise ValidationError('Final member bills already exist. This order cannot be finalized twice.')
     recalculate(order)
+    if ItemAllocation.objects.filter(order_item__order=order).exclude(member__group=group).exists():
+        raise ValidationError('An allocation belongs to a different group.')
+    if order.split_policy == Order.SplitPolicy.EQUAL:
+        sync_equal_item_allocations(order)
     for item in order.items.prefetch_related('allocations'):
         allocations = list(item.allocations.all())
         if not allocations or sum((a.amount for a in allocations), Decimal('0')) != item.subtotal:

@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Sum
+from django.db.models import F, Sum
 from django.db.models.functions import TruncDate
 from django.shortcuts import render
 from django.utils import timezone
@@ -11,7 +11,7 @@ from django.utils import timezone
 from groups.models import DiningGroup
 from menu.models import MenuItem
 from orders.models import BillAllocation, Order, OrderItem
-from payments.models import Payment
+from payments.models import CounterPayment, Payment
 
 
 @login_required
@@ -23,13 +23,21 @@ def home(request):
     finalized = Order.objects.filter(status=Order.Status.FINALIZED)
     zero = Decimal("0.00")
     sales_total = finalized.aggregate(value=Sum("total"))["value"] or zero
-    verified_total = Payment.objects.filter(status="VERIFIED").aggregate(
+    reimbursements = Payment.objects.exclude(
+        allocation__order__split_policy=Order.SplitPolicy.EQUAL,
+        allocation__member__user_id=F('allocation__order__group__owner_id'),
+    )
+    verified_total = reimbursements.filter(status="VERIFIED").aggregate(
         value=Sum("allocation__amount")
     )["value"] or zero
-    allocated_total = BillAllocation.objects.filter(order__status="FINALIZED").aggregate(
+    allocated_total = BillAllocation.objects.filter(order__status="FINALIZED").exclude(
+        order__split_policy=Order.SplitPolicy.EQUAL,
+        member__user_id=F('order__group__owner_id'),
+    ).aggregate(
         value=Sum("amount")
     )["value"] or zero
-    awaiting_verification = Payment.objects.filter(status="PENDING").count()
+    awaiting_verification = reimbursements.filter(status="PENDING").count()
+    counter_declared_total = CounterPayment.objects.aggregate(value=Sum('amount'))['value'] or zero
 
     today = timezone.localdate()
     first_day = today - timedelta(days=6)
@@ -58,6 +66,7 @@ def home(request):
         "verified_total": verified_total,
         "pending_total": allocated_total - verified_total,
         "awaiting_verification": awaiting_verification,
+        "counter_declared_total": counter_declared_total,
         "order_count": finalized.count(),
         "active_groups": DiningGroup.objects.filter(status__in=["OPEN", "ORDERING"]).count(),
         "menu_count": MenuItem.objects.count(),

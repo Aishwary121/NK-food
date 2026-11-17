@@ -135,5 +135,5 @@ def complete(request, pk):
     except ValidationError as error:
         messages.error(request, '; '.join(error.messages))
     else:
-        messages.success(request, 'All payments are verified. This group is complete.')
+        messages.success(request, 'The group is complete. Its bill and payment history remain available.')
     return redirect('groups:detail', pk=pk)

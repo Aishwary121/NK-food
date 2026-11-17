@@ -23,6 +23,15 @@ def show_error(request, error):
     messages.error(request, '; '.join(error.messages))
 
 
+def allocation_context(order):
+    allocations = list(order.allocations.select_related('member__user')) if order.status == 'FINALIZED' else bill_breakdown(order)
+    amounts = [row.amount if order.status == 'FINALIZED' else row['amount'] for row in allocations]
+    return {
+        'allocations': allocations, 'allocation_count': len(allocations),
+        'equal_rounding': order.split_policy == Order.SplitPolicy.EQUAL and len(set(amounts)) > 1,
+    }
+
+
 @login_required
 def order_list(request):
     orders = Order.objects.filter(group__memberships__user=request.user).select_related('group').distinct()
@@ -33,10 +42,9 @@ def order_list(request):
 def detail(request, pk):
     order = accessible_order(request.user, pk)
     items = order.items.select_related('menu_item', 'added_by').prefetch_related('allocations__member__user', 'allocations__member__pair')
-    allocations = order.allocations.select_related('member__user') if order.status == 'FINALIZED' else bill_breakdown(order)
     form = AdjustmentForm(initial={'tax': order.tax, 'discount': order.discount})
     return render(request, 'orders/detail.html', {'order': order, 'group': order.group, 'items': items,
-                                                  'allocations': allocations, 'kitchen': kitchen_summary(order), 'adjustment_form': form})
+                                                  **allocation_context(order), 'kitchen': kitchen_summary(order), 'adjustment_form': form})
 
 
 @login_required
@@ -89,13 +97,16 @@ def cart_update(request, pk):
 @login_required
 @require_POST
 def cart_submit(request, pk):
-    accessible_order(request.user, pk)
+    order = accessible_order(request.user, pk)
     try:
         submit_cart(order_id=pk, actor=request.user)
     except ValidationError as error:
         show_error(request, error)
         return redirect('orders:cart', pk=pk)
-    messages.success(request, 'Your selection has been added to the group order. Review how each item is shared.')
+    message = ('Your selection has been added. The whole bill is shared equally by every group member, including the host.'
+               if order.split_policy == Order.SplitPolicy.EQUAL else
+               'Your selection has been added to the group order. Review how each item is shared.')
+    messages.success(request, message)
     return redirect('orders:detail', pk=pk)
 
 
@@ -111,7 +122,7 @@ def edit_split(request, pk):
         except ValidationError as error:
             form.add_error(None, error)
         else:
-            messages.success(request, 'Sharing updated. Every paise is accounted for.')
+            messages.success(request, 'Quantity updated. The bill remains equally shared by everyone.' if item.order.split_policy == Order.SplitPolicy.EQUAL else 'Sharing updated. Every paise is accounted for.')
             return redirect('orders:detail', pk=item.order_id)
     return render(request, 'orders/split.html', {'form': form, 'item': item})
 
@@ -132,7 +143,7 @@ def item_remove(request, pk):
 @login_required
 @require_POST
 def adjustments(request, pk):
-    accessible_order(request.user, pk)
+    order = accessible_order(request.user, pk)
     form = AdjustmentForm(request.POST)
     if form.is_valid():
         try:
@@ -140,7 +151,7 @@ def adjustments(request, pk):
         except ValidationError as error:
             show_error(request, error)
         else:
-            messages.success(request, 'Tax and discount updated and distributed proportionally.')
+            messages.success(request, 'Tax and discount updated. The grand total is shared equally by everyone.' if order.split_policy == Order.SplitPolicy.EQUAL else 'Tax and discount updated and distributed proportionally.')
     else:
         messages.error(request, 'Enter valid non-negative tax and discount amounts, with up to two decimal places.')
     return redirect('orders:detail', pk=pk)
@@ -162,6 +173,5 @@ def finalize(request, pk):
 @login_required
 def receipt(request, pk):
     order = accessible_order(request.user, pk)
-    allocations = order.allocations.select_related('member__user') if order.status == 'FINALIZED' else bill_breakdown(order)
-    return render(request, 'orders/receipt.html', {'order': order, 'allocations': allocations, 'kitchen': kitchen_summary(order),
+    return render(request, 'orders/receipt.html', {'order': order, **allocation_context(order), 'kitchen': kitchen_summary(order),
                                                   'items': order.items.prefetch_related('allocations__member__user')})

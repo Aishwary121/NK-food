@@ -6,7 +6,7 @@ from django.urls import reverse
 from unittest.mock import patch
 from payments.models import Payment, PaymentAudit, PaymentQRSettings
 from payments.storage import private_qr_storage
-from orders.models import BillAllocation
+from orders.models import BillAllocation, Order
 from .models import Membership
 from .services import cancel_group, complete_group, create_group, form_pair, join_group, leave_group, set_collector
 
@@ -20,6 +20,9 @@ class GroupTests(TestCase):
         cls.third = User.objects.create_user('third', password='Group-test-123')
         cls.outsider = User.objects.create_user('outsider', password='Group-test-123')
         cls.group = create_group(owner=cls.owner, name='Lunch club', max_members=4)
+        # Historical item-based orders retain their original collector workflow.
+        Order.objects.filter(group=cls.group).update(split_policy=Order.SplitPolicy.ITEMIZED)
+        cls.group.order.refresh_from_db()
         cls.owner_member = cls.group.memberships.get(user=cls.owner)
         cls.friend_member = join_group(user=cls.friend, code=cls.group.code)
         cls.third_member = join_group(user=cls.third, code=cls.group.code)
@@ -172,3 +175,44 @@ class GroupTests(TestCase):
         self.assertTrue(order.payment_audit.filter(action='GROUP_COMPLETED').exists())
         with self.assertRaises(ValidationError):
             cancel_group(group=self.group, actor=self.owner)
+
+
+class EqualGroupTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.host = User.objects.create_user('equal-host')
+        cls.friend = User.objects.create_user('equal-friend')
+        cls.group = create_group(owner=cls.host, name='Equal lunch')
+        cls.friend_member = join_group(user=cls.friend, code=cls.group.code)
+
+    def test_new_group_splits_equally_and_host_remains_collector(self):
+        self.assertEqual(self.group.order.split_policy, Order.SplitPolicy.EQUAL)
+        self.assertEqual(self.group.collector_id, self.host.pk)
+        with self.assertRaises(ValidationError):
+            set_collector(group=self.group, actor=self.host, membership=self.friend_member)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.collector_id, self.host.pk)
+
+    def test_equal_member_can_leave_shared_items_added_by_host(self):
+        from decimal import Decimal
+        from menu.models import Category, MenuItem
+        from orders.services import add_to_cart, bill_breakdown, submit_cart
+        category = Category.objects.create(name='Group lunch', slug='equal-group-lunch')
+        food = MenuItem.objects.create(category=category, name='Lunch', price='300.00')
+        add_to_cart(group_id=self.group.pk, actor=self.host, menu_item=food)
+        order = submit_cart(order_id=self.group.order.pk, actor=self.host)
+        self.assertEqual([row['amount'] for row in bill_breakdown(order)], [Decimal('150.00'), Decimal('150.00')])
+        leave_group(group=self.group, user=self.friend)
+        self.assertEqual([row['amount'] for row in bill_breakdown(order)], [Decimal('300.00')])
+        self.assertEqual(order.items.get().allocations.count(), 1)
+        join_group(user=self.friend, code=self.group.code)
+        self.assertEqual([row['amount'] for row in bill_breakdown(order)], [Decimal('150.00'), Decimal('150.00')])
+        self.assertEqual(order.items.get().allocations.count(), 2)
+
+    def test_equal_collector_endpoint_cannot_redirect_receipts_to_another_member(self):
+        self.client.force_login(self.host)
+        response = self.client.post(reverse('groups:collector', args=[self.group.pk]), {'collector': self.friend_member.pk})
+        self.assertEqual(response.status_code, 302)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.collector_id, self.host.pk)
