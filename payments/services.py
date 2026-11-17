@@ -66,6 +66,86 @@ def generate_qr_png(uri):
 def get_payment(allocation):
     return Payment.objects.get_or_create(allocation=allocation)[0]
 
+
+def member_payment_context(order, user):
+    """Read-only, member-specific next action for the group and order screens.
+
+    Draft totals are estimates only. Every actionable UPI amount comes from the
+    immutable final allocation, and merely viewing this card never creates or
+    transitions a payment claim.
+    """
+    if not user.is_authenticated:
+        return {'payment_action': None}
+    order = Order.objects.select_related('group__owner', 'group__collector').get(pk=order.pk)
+    member = order.group.memberships.filter(user=user).first()
+    if member is None:
+        return {'payment_action': None}
+    config = PaymentQRSettings.objects.filter(order=order).first()
+    method = config.preferred_method if config else ''
+    direct_ready = False
+    if config and method in (PaymentQRSettings.Method.DYNAMIC, PaymentQRSettings.Method.STATIC):
+        try:
+            validate_upi_id(config.upi_id)
+            direct_ready = bool(config.display_name.strip())
+        except ValidationError:
+            pass
+    setup_ready = bool(config and (
+        (method == PaymentQRSettings.Method.DYNAMIC and direct_ready) or
+        (method == PaymentQRSettings.Method.STATIC and config.static_qr)
+    ))
+    host = order.split_policy == Order.SplitPolicy.EQUAL and user.pk == order.group.owner_id
+    receiver = order.group.owner if order.split_policy == Order.SplitPolicy.EQUAL else order.group.collector
+    action = {
+        'state': 'SETUP_REQUIRED', 'order': order, 'amount': None,
+        'allocation': None, 'payment': None, 'upi_uri': '', 'config': config,
+        'receiver': receiver, 'receiver_name': receiver.get_full_name() or receiver.username,
+        'is_host': host, 'can_manage': is_collector(user, order),
+        'can_finalize': user.pk == order.group.owner_id and order.group.is_open,
+        'finalized': order.status == Order.Status.FINALIZED,
+        'status': Payment.Status.UNPAID, 'setup_ready': setup_ready,
+        'cart_item_count': 0, 'own_cart_item_count': 0,
+    }
+    context = {'payment_action': action}
+    if order.group.status == DiningGroup.Status.CANCELLED:
+        action['state'] = 'CANCELLED'
+        return context
+    if order.status != Order.Status.FINALIZED:
+        from orders.models import CartItem
+        from orders.services import bill_breakdown
+        action['state'] = 'DRAFT'
+        action['amount'] = next((row['amount'] for row in bill_breakdown(order)
+                                 if row['member'].pk == member.pk), None)
+        carts = CartItem.objects.filter(member__group=order.group)
+        action['cart_item_count'] = carts.count()
+        action['own_cart_item_count'] = carts.filter(member=member).count()
+        return context
+    allocation = order.allocations.filter(member=member).select_related('member__user').first()
+    action['allocation'] = allocation
+    if allocation is None:
+        return context
+    action['amount'] = allocation.amount
+    if host:
+        action['state'] = 'HOST'
+        return context
+    payment = Payment.objects.filter(allocation=allocation).first()
+    action['payment'] = payment
+    action['status'] = payment.status if payment else Payment.Status.UNPAID
+    if allocation.amount <= 0:
+        action['state'] = 'ZERO'
+    elif action['status'] in (Payment.Status.PENDING, Payment.Status.VERIFIED):
+        action['state'] = action['status']
+    elif setup_ready:
+        if direct_ready:
+            try:
+                action['upi_uri'] = build_upi_uri(allocation)
+            except ValidationError:
+                pass
+        if action['upi_uri']:
+            action['state'] = 'READY'
+        elif method == PaymentQRSettings.Method.STATIC:
+            action['state'] = 'STATIC_ONLY'
+    return context
+
 @transaction.atomic
 def save_qr_settings(order_id, actor, cleaned_data):
     # Match group/order service lock order; a previous collector must not save

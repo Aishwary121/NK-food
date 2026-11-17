@@ -57,12 +57,12 @@ Two sample groups are included:
 ## Try the complete workflow
 
 1. Register users, or sign in with a demo customer. Create a dining group and share its group code or join QR.
-2. Sign in as the other members and join the group. The organizer can form pairs and choose a collector before the order is finalized.
+2. Sign in as the other members and join the group. In new equal-split groups, the host is the payment collector.
 3. Select a group on the menu and add dishes to your personal cart. Adjust quantities, then add the selection to the table's order.
-4. On the order page, configure each item's allocation. For nine ₹7 rotis, assign quantities 4 and 5 to obtain ₹28.00 and ₹35.00. Split a shared paneer dish equally; assign beverages to the people who ordered them.
-5. Review the combined kitchen quantities and every member's bill. Only the organizer can finalize. Finalization stores the payable amounts and locks ordinary editing.
+4. Review quantities on the order page. The full bill is divided equally across all members, including the host. Historical finalized itemized orders retain their original allocations.
+5. Review the combined kitchen quantities and every member's bill. Only the organizer can finalize, using **Finalize & enable payments** at the top of the page to reach the finalization form. Finalization stores the payable amounts and locks ordinary editing.
 6. Open the collector dashboard, then **Payment QR Management**. Enter the UPI ID and payee display name, upload a static QR if desired, and select the preferred method.
-7. Open a member's payment page. The amount comes from the finalized bill allocation. Scan the displayed QR or use **Open UPI App** on a compatible mobile device. QR downloads are also available.
+7. Members see **Pay ₹amount via UPI** at the top of the group and order pages once the bill is finalized and UPI is configured. The button opens a compatible mobile UPI app with the finalized amount and collector's UPI ID filled in. **View QR / payment status** provides the desktop QR, download and payment claim form. Waiting pages check for finalization or payment setup every 15 seconds while visible; the manual refresh link also works without JavaScript.
 8. After actually paying in the UPI app, submit **I Have Paid** with the requested reference information. The payment becomes **Pending verification**.
 9. The collector or an authorized administrator checks the incoming transfer independently and verifies or rejects it. The dashboard totals update from verified records only.
 10. Open the order receipt and print it with the print action or your browser's print command.

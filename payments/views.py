@@ -8,7 +8,7 @@ from django.views.decorators.http import require_GET, require_POST, require_http
 from orders.models import BillAllocation, Order
 from .forms import CounterPaymentForm, PaymentClaimForm, PaymentReviewForm, QRSettingsForm
 from .models import CounterPayment, Payment, PaymentQRSettings
-from .services import build_upi_uri, collection_payments, generate_qr_png, get_payment, is_collector, is_host_allocation, payment_totals, record_counter_payment, require_collector, review_payment, save_qr_settings, submit_payment
+from .services import build_upi_uri, collection_payments, generate_qr_png, get_payment, is_collector, is_host_allocation, member_payment_context, payment_totals, record_counter_payment, require_collector, review_payment, save_qr_settings, submit_payment
 
 def _allocation_for_user(pk, user):
     allocation = get_object_or_404(BillAllocation.objects.select_related('order__group__collector', 'member__user'), pk=pk, order__status='FINALIZED')
@@ -73,18 +73,21 @@ def member(request, pk):
             messages.info(request, 'Payment submitted for verification. The collector will check receipt before verifying it.')
             return redirect('payments:member', pk=pk)
     uri = ''
-    if not host_share and config and config.upi_id and allocation.amount > 0:
+    method = config.preferred_method if config else ''
+    if (not host_share and config and config.upi_id and allocation.amount > 0
+            and method in ['STATIC', 'DYNAMIC'] and payment.status in ['UNPAID', 'REJECTED']):
         try:
             uri = build_upi_uri(allocation)
         except ValidationError:
             pass
-    method = config.preferred_method if config else ''
     ready = not host_share and allocation.amount > 0 and bool(config and ((method == 'STATIC' and config.static_qr) or (method == 'DYNAMIC' and uri)))
     return render(request, 'payments/member.html', {
         'allocation': allocation, 'order': allocation.order, 'payment': payment,
         'config': config, 'form': form, 'upi_uri': uri, 'ready': ready,
         'is_host_share': host_share, 'is_host_allocation': host_share,
         'counter_payment': CounterPayment.objects.filter(order=allocation.order).first(),
+        **(member_payment_context(allocation.order, request.user)
+           if allocation.member.user_id == request.user.pk else {'payment_action': None}),
         'can_submit': not host_share and allocation.member.user_id == request.user.pk and payment.status in ['UNPAID', 'REJECTED'] and ready,
     })
 

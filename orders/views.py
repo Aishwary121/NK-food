@@ -2,10 +2,13 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET, require_POST
 from groups.models import DiningGroup
 from menu.models import MenuItem
+from payments.services import member_payment_context
 from .forms import AdjustmentForm, SplitForm
 from .models import CartItem, Order, OrderItem
 from .services import (add_to_cart, bill_breakdown, change_allocation, finalize_order,
@@ -33,18 +36,36 @@ def allocation_context(order):
 
 
 @login_required
+@never_cache
 def order_list(request):
     orders = Order.objects.filter(group__memberships__user=request.user).select_related('group').distinct()
     return render(request, 'orders/list.html', {'orders': orders})
 
 
 @login_required
+@never_cache
 def detail(request, pk):
     order = accessible_order(request.user, pk)
     items = order.items.select_related('menu_item', 'added_by').prefetch_related('allocations__member__user', 'allocations__member__pair')
     form = AdjustmentForm(initial={'tax': order.tax, 'discount': order.discount})
     return render(request, 'orders/detail.html', {'order': order, 'group': order.group, 'items': items,
-                                                  **allocation_context(order), 'kitchen': kitchen_summary(order), 'adjustment_form': form})
+                                                  **allocation_context(order), **member_payment_context(order, request.user),
+                                                  'kitchen': kitchen_summary(order), 'adjustment_form': form})
+
+
+@login_required
+@never_cache
+@require_GET
+def payment_status(request, pk):
+    """Refresh a member's waiting card without creating a payment claim."""
+    order = accessible_order(request.user, pk)
+    action = member_payment_context(order, request.user)['payment_action']
+    return JsonResponse({
+        'state': action['state'] if action else 'NONE',
+        'amount': format(action['amount'], '.2f') if action and action['amount'] is not None else None,
+        'finalized': order.status == Order.Status.FINALIZED,
+        'payment_status': action['status'] if action else None,
+    })
 
 
 @login_required
@@ -162,11 +183,14 @@ def adjustments(request, pk):
 def finalize(request, pk):
     accessible_order(request.user, pk)
     try:
-        finalize_order(order_id=pk, actor=request.user)
+        order = finalize_order(order_id=pk, actor=request.user)
     except ValidationError as error:
         show_error(request, error)
     else:
-        messages.success(request, 'Order finalized. Member bills are locked and ready for payment.')
+        messages.success(request, 'Order finalized. Everyone\'s share is now locked.')
+        action = member_payment_context(order, request.user)['payment_action']
+        if action and not action['setup_ready']:
+            messages.info(request, 'Set up the payment collector\'s UPI / QR to let members pay their shares.')
     return redirect('orders:detail', pk=pk)
 
 

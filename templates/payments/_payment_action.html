@@ -1,0 +1,49 @@
+{% if payment_action %}
+<section class="card payment-action no-print" aria-labelledby="payment-action-title"{% if not payment_action.is_host %}{% if payment_action.state == 'DRAFT' or payment_action.state == 'SETUP_REQUIRED' %} data-payment-state="{{ payment_action.state }}" data-payment-status-url="{% url 'orders:payment_status' payment_action.order.pk %}"{% endif %}{% endif %}>
+  <div class="payment-action-copy">
+    <p class="eyebrow">{% if payment_action.is_host %}HOST PAYMENT TOOLS{% else %}YOUR PAYMENT{% endif %}</p>
+    <h2 id="payment-action-title">{% if payment_action.state == 'DRAFT' %}{% if payment_action.can_finalize %}Finalize to enable member payments{% else %}Waiting for the host to finalize{% endif %}{% elif payment_action.state == 'HOST' %}You pay the restaurant counter{% elif payment_action.state == 'PENDING' %}Payment awaiting verification{% elif payment_action.state == 'VERIFIED' %}Your payment is complete{% elif payment_action.state == 'ZERO' %}No payment due{% elif payment_action.state == 'CANCELLED' %}Payments are closed{% elif payment_action.state == 'SETUP_REQUIRED' %}Waiting for payment setup{% else %}Pay your {% if payment_action.order.split_policy == 'EQUAL' %}host{% else %}collector{% endif %}{% endif %}</h2>
+    {% if payment_action.amount != None and payment_action.state != 'CANCELLED' %}<p class="payment-action-share"><strong class="payment-action-amount">₹{{ payment_action.amount|floatformat:2 }}</strong><span>{% if payment_action.state == 'DRAFT' %}your estimated share{% elif payment_action.is_host %}your own share{% else %}your finalized share{% endif %}</span></p>{% endif %}
+    {% if payment_action.state == 'DRAFT' %}
+      <p>The order is still in progress. {% if payment_action.can_finalize %}Review the bill, then finalize it to lock everyone's share and enable payment.{% else %}{{ payment_action.order.group.owner.get_full_name|default:payment_action.order.group.owner.username }} needs to finalize the bill before you can pay. Your share can still change.{% endif %}</p>
+      {% if payment_action.cart_item_count %}<p class="muted small">{{ payment_action.cart_item_count }} cart item{{ payment_action.cart_item_count|pluralize }} still need{{ payment_action.cart_item_count|pluralize:'s,' }} to be submitted or removed before finalizing.</p>{% endif %}
+    {% elif payment_action.state == 'HOST' %}
+      <p>Pay the full <strong>₹{{ payment_action.order.total|floatformat:2 }}</strong> at the counter. Other members pay their shares to your UPI; your own share needs no transfer to yourself.</p>
+    {% elif payment_action.state == 'PENDING' %}
+      <p>{{ payment_action.receiver_name }} is checking your payment. Do not pay again while it is under review.</p>
+    {% elif payment_action.state == 'VERIFIED' %}
+      <p>Your payment has been verified. No further transfer is needed.</p>
+    {% elif payment_action.state == 'ZERO' %}
+      <p>Your finalized share is ₹0.00. No transfer is needed.</p>
+    {% elif payment_action.state == 'CANCELLED' %}
+      <p>This group was cancelled. No payment is available for this order.</p>
+    {% elif payment_action.state == 'SETUP_REQUIRED' %}
+      <p>The bill is finalized, but {{ payment_action.receiver_name }} still needs to set up an active UPI payment method. Refresh this page after the setup is saved.</p>
+    {% else %}
+      <p>To <strong>{{ payment_action.receiver_name }}</strong>{% if payment_action.config.display_name %} · {{ payment_action.config.display_name }}{% endif %}</p>
+      {% if payment_action.state == 'READY' %}<p class="muted small">Opens a compatible UPI app with ₹{{ payment_action.amount|floatformat:2 }} filled in. On desktop, use View QR. After paying, return and select <strong>I Have Paid</strong>.</p>{% else %}<p class="muted small">The host has uploaded a static QR. You may need to enter ₹{{ payment_action.amount|floatformat:2 }} manually. A UPI ID is needed for a direct app button.</p>{% endif %}
+      {% if payment_action.status == 'REJECTED' %}<p class="muted small">Your previous claim was rejected. Check the payment details before trying again.</p>{% endif %}
+    {% endif %}
+  </div>
+  <div class="payment-action-buttons">
+    {% if payment_action.state == 'READY' %}
+      <a class="btn btn-primary payment-action-pay" href="{{ payment_action.upi_uri }}">Pay ₹{{ payment_action.amount|floatformat:2 }} via UPI <span aria-hidden="true">↗</span></a>
+      <a class="btn btn-secondary" href="{% url 'payments:member' payment_action.allocation.pk %}">View QR / payment status</a>
+    {% elif payment_action.state == 'STATIC_ONLY' %}
+      <a class="btn btn-primary" href="{% url 'payments:member' payment_action.allocation.pk %}">View QR to pay ₹{{ payment_action.amount|floatformat:2 }}</a>
+    {% elif payment_action.state == 'DRAFT' %}
+      {% if payment_action.can_finalize %}<a class="btn btn-primary" href="{% url 'orders:detail' payment_action.order.pk %}#finalize-order">Finalize &amp; enable payments</a>{% else %}<a class="btn btn-secondary" href="{% url 'orders:detail' payment_action.order.pk %}">Refresh payment status</a>{% endif %}
+      {% if payment_action.own_cart_item_count %}<a class="btn btn-secondary" href="{% url 'orders:cart' payment_action.order.pk %}">Submit or clear my cart</a>{% endif %}
+      {% if payment_action.can_manage %}<a class="btn btn-secondary" href="{% url 'payments:settings' payment_action.order.pk %}">Set up UPI / QR</a>{% endif %}
+    {% elif payment_action.state == 'HOST' %}
+      <a class="btn btn-primary" href="{% url 'payments:collector' payment_action.order.pk %}">Counter payment &amp; member status</a>
+      <a class="btn btn-secondary" href="{% url 'payments:settings' payment_action.order.pk %}">Set up UPI / QR</a>
+    {% elif payment_action.state == 'PENDING' or payment_action.state == 'VERIFIED' or payment_action.state == 'ZERO' %}
+      <a class="btn btn-secondary" href="{% url 'payments:member' payment_action.allocation.pk %}">View payment status</a>
+    {% elif payment_action.state == 'SETUP_REQUIRED' %}
+      {% if payment_action.can_manage %}<a class="btn btn-primary" href="{% url 'payments:settings' payment_action.order.pk %}">Set up UPI / QR</a>{% endif %}
+      <a class="btn btn-secondary" href="{% url 'orders:detail' payment_action.order.pk %}">Refresh payment status</a>
+    {% endif %}
+  </div>
+</section>
+{% endif %}

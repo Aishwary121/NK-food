@@ -6,7 +6,9 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
+from payments.services import member_payment_context
 from .forms import CollectorForm, GroupForm, JoinForm, PairForm
 from .models import DiningGroup
 from .services import cancel_group, complete_group, create_group, form_pair, join_group, leave_group, set_collector
@@ -20,6 +22,7 @@ def accessible_group(user, pk):
 
 
 @login_required
+@never_cache
 def group_list(request):
     groups = DiningGroup.objects.filter(memberships__user=request.user).select_related('owner', 'order')
     return render(request, 'groups/list.html', {'groups': groups})
@@ -50,12 +53,14 @@ def join(request):
 
 
 @login_required
+@never_cache
 def detail(request, pk):
     group = accessible_group(request.user, pk)
     members = group.memberships.select_related('user', 'pair')
     pair_form = PairForm(group=group)
     collector_form = CollectorForm(group=group)
-    return render(request, 'groups/detail.html', {'group': group, 'members': members, 'pair_form': pair_form, 'collector_form': collector_form})
+    return render(request, 'groups/detail.html', {'group': group, 'members': members, 'pair_form': pair_form,
+                                                'collector_form': collector_form, **member_payment_context(group.order, request.user)})
 
 
 @login_required

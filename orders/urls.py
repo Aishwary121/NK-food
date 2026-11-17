@@ -3,6 +3,7 @@ from . import views
 
 app_name = 'orders'
 urlpatterns = [
+    path('<int:pk>/payment-status/', views.payment_status, name='payment_status'),
     path('', views.order_list, name='list'),
     path('cart/add/', views.add, name='add'),
     path('cart/item/<int:pk>/', views.cart_update, name='update_cart'),

@@ -68,4 +68,37 @@
       }
     });
   });
+  // A waiting member sees the payment button when the host finalizes or saves
+  // UPI details. Checking status never launches an app or changes a payment.
+  const waitingPayment = document.querySelector('[data-payment-status-url]');
+  if (waitingPayment && typeof window.fetch === 'function') {
+    let checking = false;
+    let refreshing = false;
+    const checkPaymentStatus = async () => {
+      if (document.hidden || checking || refreshing) return;
+      checking = true;
+      try {
+        const response = await fetch(waitingPayment.dataset.paymentStatusUrl, {
+          credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'application/json'}
+        });
+        if (!response.ok) return;
+        const status = await response.json();
+        if (typeof status.state === 'string' && status.state !== waitingPayment.dataset.paymentState) {
+          refreshing = true;
+          window.location.reload();
+        }
+      } catch (_) {
+        // The visible Refresh payment status link remains the fallback.
+      } finally {
+        checking = false;
+      }
+    };
+    window.setInterval(checkPaymentStatus, 15000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) checkPaymentStatus();
+    });
+    window.addEventListener('pageshow', event => {
+      if (event.persisted) checkPaymentStatus();
+    });
+  }
 })();
