@@ -1,6 +1,6 @@
 # N.K. Food Court — Neelkanth Refreshments
 
-A Django application for restaurant ordering, group dining, precise bill splitting and manually verified UPI payments. The backend uses Django authentication, Forms, the ORM and server-rendered templates. SQLite is the default database; PostgreSQL can be configured through environment variables.
+A Django application for restaurant ordering, group dining, equal bill splitting and one-click simulated payments for testing. The backend uses Django authentication, Forms, the ORM and server-rendered templates. SQLite is the default database; PostgreSQL can be configured through environment variables.
 
 **Live application:** [N.K. Food Court on PythonAnywhere](https://aishwary123321.pythonanywhere.com/) · **Source:** [Aishwary121/NK-food](https://github.com/Aishwary121/NK-food).
 
@@ -54,20 +54,26 @@ Two sample groups are included:
 - **Lunch at N.K. — sample bill** is finalized with two pairs, a ₹437.00 order and collector Rahul. Rahul owes **₹175.50**, Aman **₹107.50**, Rohit **₹73.50**, and Karan **₹80.50**. The kitchen order contains 14 Tawa Rotis, one Shahi Paneer, one Cold Coffee, one Dal Makhani and two Nimbu Paanis.
 - **Our next lunch — open table** contains the same four members and an empty draft order, ready for testing the cart and sharing controls.
 
+## Demo payment mode (current default)
+
+`PAYMENT_DEMO_MODE=true` is enabled by default, including the hosted demonstration. **No money is transferred.** The member presses **Pay ?amount (demo)** once and receives **Demo paid** immediately. The host dashboard automatically refreshes to show that member as paid in the demo. No UPI ID, QR image, Paytm/UPI app, transaction reference or manual verification is required.
+
+Demo results use the separate `DEMO_PAID` status and an audit event. They never become `VERIFIED` and never increase real verified-collection totals. Existing verified records and saved QR settings are preserved. Demo counter payments are also explicitly marked as simulated. Merely opening a page does not simulate payment; the member must submit their own authenticated, CSRF-protected Pay form. Amounts still come from finalized bill allocations.
+
+The UPI setup, QR delivery, real claim and review endpoints are disabled while demo mode is enabled. The retained real-payment implementation is available only when a deployment explicitly sets `PAYMENT_DEMO_MODE=false`; it does not treat demo records as bank-confirmed money.
+
 ## Try the complete workflow
 
-1. Register users, or sign in with a demo customer. Create a dining group and share its group code or join QR.
-2. Sign in as the other members and join the group. In new equal-split groups, the host is the payment collector.
-3. Select a group on the menu and add dishes to your personal cart. Adjust quantities, then add the selection to the table's order.
-4. Review quantities on the order page. The full bill is divided equally across all members, including the host. Historical finalized itemized orders retain their original allocations.
-5. Review the combined kitchen quantities and every member's bill. Only the organizer can finalize, using **Finalize & enable payments** at the top of the page to reach the finalization form. Finalization stores the payable amounts and locks ordinary editing.
-6. Open the collector dashboard, then **Payment QR Management**. Enter the UPI ID and payee display name, upload a static QR if desired, and select the preferred method.
-7. Members see **Pay ₹amount via UPI** at the top of the group and order pages once the bill is finalized and UPI is configured. The button opens a compatible mobile UPI app with the finalized amount and collector's UPI ID filled in. **View QR / payment status** provides the desktop QR, download and payment claim form. Waiting pages check for finalization or payment setup every 15 seconds while visible; the manual refresh link also works without JavaScript.
-8. After actually paying in the UPI app, submit **I Have Paid** with the requested reference information. The payment becomes **Pending verification**.
-9. The collector or an authorized administrator checks the incoming transfer independently and verifies or rejects it. The dashboard totals update from verified records only.
-10. Open the order receipt and print it with the print action or your browser's print command.
+1. Register or sign in, create a group, and let the other members join.
+2. Add food to personal carts and submit it to the group order.
+3. Review the full bill, divided equally among every member including the host.
+4. The host finalizes the order to lock everyone's amount.
+5. Each other member presses **Pay ?amount (demo)** on their group, order or payment page.
+6. The member immediately sees **Demo paid**. The host sees the updated member status automatically on the payment dashboard.
+7. The host may press **Mark counter paid (demo)** to simulate the full counter bill, then complete the group after all member shares are settled in the demo.
+8. View or print the bill. The demo label makes clear that no money was transferred.
 
-## Payment design
+## Retained real-payment design (disabled in demo mode)
 
 The integrated feature requirements and acceptance criteria are documented in [Payment requirements](docs/PAYMENT_REQUIREMENTS.md).
 

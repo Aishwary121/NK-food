@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from .models import DiningGroup, Membership, Pair
@@ -139,13 +140,23 @@ def complete_group(*, group, actor):
         raise ValidationError('This order has no finalized member bills.')
     payable = order.allocations.filter(amount__gt=0)
     if order.split_policy == 'EQUAL':
-        if not CounterPayment.objects.filter(order=order).exists():
+        counter_records = CounterPayment.objects.filter(order=order)
+        if not settings.PAYMENT_DEMO_MODE:
+            counter_records = counter_records.filter(is_demo=False)
+        if not counter_records.exists():
             raise ValidationError('The host must record paying the full restaurant bill at the counter first.')
         payable = payable.exclude(member__user_id=group.owner_id)
-    if payable.exclude(payment__status=Payment.Status.VERIFIED).exists():
-        raise ValidationError('Every payable member share must be verified before completing the group.')
+    settled_statuses = [Payment.Status.VERIFIED]
+    if settings.PAYMENT_DEMO_MODE:
+        settled_statuses.append(Payment.Status.DEMO_PAID)
+    if payable.exclude(payment__status__in=settled_statuses).exists():
+        raise ValidationError('Every payable member share must be paid in demo mode before completing the group.'
+                              if settings.PAYMENT_DEMO_MODE else
+                              'Every payable member share must be verified before completing the group.')
     group.status = DiningGroup.Status.COMPLETED
     group.save(update_fields=['status'])
     PaymentAudit.objects.create(order=order, actor=actor, action='GROUP_COMPLETED',
-                                detail=('Full counter payment declared and all positive member transfers verified.'
-                                        if order.split_policy == 'EQUAL' else 'All positive member allocations were verified before completion.'))
+                                detail=('Group completed in demo payment mode; simulated payments do not prove a transfer.'
+                                        if settings.PAYMENT_DEMO_MODE else
+                                        ('Full counter payment declared and all positive member transfers verified.'
+                                         if order.split_policy == 'EQUAL' else 'All positive member allocations were verified before completion.')))

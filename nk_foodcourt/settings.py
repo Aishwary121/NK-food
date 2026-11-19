@@ -5,6 +5,8 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = os.getenv('DJANGO_DEBUG', 'true').lower() == 'true'
+# This academic demo simulates payment only; it never initiates a bank transfer.
+PAYMENT_DEMO_MODE = os.getenv('PAYMENT_DEMO_MODE', 'true').lower() == 'true'
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '')
 if not SECRET_KEY:
     if not DEBUG:
@@ -34,6 +36,7 @@ TEMPLATES = [{
     'APP_DIRS': True, 'OPTIONS': {'context_processors': [
         'django.template.context_processors.request', 'django.contrib.auth.context_processors.auth',
         'django.contrib.messages.context_processors.messages',
+        'nk_foodcourt.context_processors.payment_mode',
     ]},
 }]
 WSGI_APPLICATION = 'nk_foodcourt.wsgi.application'

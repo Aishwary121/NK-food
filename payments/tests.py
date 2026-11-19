@@ -27,6 +27,7 @@ def uploaded_image(name='qr.png', format='PNG', size=(320, 320), trailing=b''):
     Image.new('RGB', size, 'white').save(buffer, format=format)
     return SimpleUploadedFile(name, buffer.getvalue() + trailing, content_type='image/png')
 
+@override_settings(PAYMENT_DEMO_MODE=False)
 class PaymentTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -363,6 +364,7 @@ class PaymentTests(TestCase):
         self.assertNotContains(response, 'Three steps to settle up')
 
 
+@override_settings(PAYMENT_DEMO_MODE=False)
 class HostCollectionTests(TestCase):
     @classmethod
     def setUpTestData(cls):

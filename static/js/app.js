@@ -101,4 +101,46 @@
       if (event.persisted) checkPaymentStatus();
     });
   }
+  // Keep the host's demo status board in sync with member clicks. A poll is
+  // read-only and must never interrupt a form being edited or submitted.
+  const collectorBoard = document.querySelector('[data-collector-status-url]');
+  if (collectorBoard && typeof window.fetch === 'function') {
+    let checking = false;
+    let refreshing = false;
+    let editing = false;
+    let submitting = false;
+    collectorBoard.querySelectorAll('form').forEach(form => {
+      form.addEventListener('input', () => { editing = true; });
+      form.addEventListener('submit', event => {
+        if (!event.defaultPrevented) submitting = true;
+      });
+    });
+    const checkCollectorStatus = async () => {
+      if (document.hidden || checking || refreshing || editing || submitting) return;
+      if (document.activeElement?.matches('input, textarea, select, [contenteditable="true"]')) return;
+      checking = true;
+      try {
+        const response = await fetch(collectorBoard.dataset.collectorStatusUrl, {
+          credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'application/json'}
+        });
+        if (!response.ok) return;
+        const status = await response.json();
+        if (typeof status.revision === 'string' && status.revision !== collectorBoard.dataset.collectorRevision && !editing && !submitting) {
+          refreshing = true;
+          window.location.reload();
+        }
+      } catch (_) {
+        // Refresh status remains available when a network check fails.
+      } finally {
+        checking = false;
+      }
+    };
+    window.setInterval(checkCollectorStatus, 8000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) checkCollectorStatus();
+    });
+    window.addEventListener('pageshow', event => {
+      if (event.persisted) checkCollectorStatus();
+    });
+  }
 })();

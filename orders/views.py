@@ -1,4 +1,5 @@
 from decimal import Decimal
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -189,7 +190,7 @@ def finalize(request, pk):
     else:
         messages.success(request, 'Order finalized. Everyone\'s share is now locked.')
         action = member_payment_context(order, request.user)['payment_action']
-        if action and not action['setup_ready']:
+        if action and not action['setup_ready'] and not settings.PAYMENT_DEMO_MODE:
             messages.info(request, 'Set up the payment collector\'s UPI / QR to let members pay their shares.')
     return redirect('orders:detail', pk=pk)
 

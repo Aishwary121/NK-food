@@ -1,4 +1,18 @@
-# UPI QR payment requirements
+# Payment requirements ? current testing demo
+
+The current requested experience is a testing-only payment simulation. `PAYMENT_DEMO_MODE=true` is the default.
+
+- A finalized member bill has a **Pay ?amount (demo)** button. One authenticated POST immediately records `DEMO_PAID`; no real transfer, app launch, QR, UPI configuration, reference or collector approval is needed.
+- The exact amount is read from the finalized allocation. A member can simulate only their own positive share. Draft, cancelled and host self-transfer payments are rejected.
+- Repeated clicks are idempotent and create one transition audit event. Existing bank-verified statuses are preserved.
+- The host sees each member's **Demo paid** status and simulated total. Its open dashboard checks for changes automatically. Simulated totals remain separate from verified receipts.
+- Counter payment simulation has its own `is_demo` flag. The group can be completed after the demo counter action and settled member shares.
+- Demo records do not count as verified receipts or permit real-mode group completion. All demo screens say no money is transferred.
+- Real payment setup, QR, claim and verification endpoints are disabled in demo mode. Previously stored records are retained.
+
+The following specification documents the retained implementation used only when `PAYMENT_DEMO_MODE=false`.
+
+## Retained UPI QR payment requirements
 
 This specification supplements the N.K. Food Court ordering and bill-splitting requirements. The implementation lives in the Django `payments` app and uses finalized `orders.BillAllocation` records.
 

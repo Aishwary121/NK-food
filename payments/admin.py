@@ -31,4 +31,5 @@ class SettingsAdmin(LedgerReadOnlyAdmin):
 
 @admin.register(CounterPayment)
 class CounterPaymentAdmin(LedgerReadOnlyAdmin):
-    list_display = ['order', 'amount', 'recorded_by', 'recorded_at', 'reference']
+    list_display = ['order', 'amount', 'is_demo', 'recorded_by', 'recorded_at', 'reference']
+    list_filter = ['is_demo']

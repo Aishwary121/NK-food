@@ -2,7 +2,7 @@ from decimal import Decimal
 from urllib.parse import parse_qs, urlparse
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from groups.models import DiningGroup, Membership
@@ -11,6 +11,7 @@ from .models import Payment, PaymentAudit, PaymentQRSettings
 from .services import member_payment_context
 
 
+@override_settings(PAYMENT_DEMO_MODE=False)
 class MemberPaymentActionTests(TestCase):
     @classmethod
     def setUpTestData(cls):

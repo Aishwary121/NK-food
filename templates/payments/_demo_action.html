@@ -1,0 +1,28 @@
+{% if payment_action %}
+<section class="card payment-action no-print" aria-labelledby="payment-action-title"{% if not payment_action.is_host and payment_action.state == 'DRAFT' %} data-payment-state="{{ payment_action.state }}" data-payment-status-url="{% url 'orders:payment_status' payment_action.order.pk %}"{% endif %}>
+  <div class="payment-action-copy">
+    <p class="eyebrow">{% if payment_action.is_host %}HOST PAYMENT TOOLS{% else %}YOUR DEMO PAYMENT{% endif %}</p>
+    <h2 id="payment-action-title">{% if payment_action.state == 'DRAFT' %}{% if payment_action.can_finalize %}Finalize to enable demo payments{% else %}Waiting for the host to finalize{% endif %}{% elif payment_action.state == 'HOST' %}Track everyone's demo payment{% elif payment_action.state == 'DEMO_PAID' %}Payment done · Demo paid{% elif payment_action.state == 'VERIFIED' %}Previously verified payment{% elif payment_action.state == 'ZERO' %}No payment due{% elif payment_action.state == 'CANCELLED' %}Payments are closed{% else %}Pay your share in one click{% endif %}</h2>
+    {% if payment_action.amount != None and payment_action.state != 'CANCELLED' %}<p class="payment-action-share"><strong class="payment-action-amount">₹{{ payment_action.amount|floatformat:2 }}</strong><span>{% if payment_action.state == 'DRAFT' %}your estimated share{% elif payment_action.is_host %}your own share{% else %}your finalized share{% endif %}</span></p>{% endif %}
+    {% if payment_action.state == 'DRAFT' %}
+      <p>{% if payment_action.can_finalize %}Review the bill and finalize it. Members can then mark their shares as paid for testing.{% else %}{{ payment_action.order.group.owner.get_full_name|default:payment_action.order.group.owner.username }} needs to finalize the bill before you can try the payment button.{% endif %}</p>
+      {% if payment_action.cart_item_count %}<p class="muted small">{{ payment_action.cart_item_count }} cart item{{ payment_action.cart_item_count|pluralize }} still need{{ payment_action.cart_item_count|pluralize:'s,' }} to be submitted or removed before finalizing.</p>{% endif %}
+    {% elif payment_action.state == 'HOST' %}<p>See which members have clicked Pay. You can also mark the full ₹{{ payment_action.order.total|floatformat:2 }} counter bill as paid in this demo.</p>
+    {% elif payment_action.state == 'DEMO_PAID' %}<p>Your host can now see your share as <strong>Demo paid</strong>. No money was transferred.</p>
+    {% elif payment_action.state == 'VERIFIED' %}<p>This payment was verified before demo mode was enabled. Its original record is preserved.</p>
+    {% elif payment_action.state == 'ZERO' %}<p>Your finalized share is ₹0.00. No payment action is needed.</p>
+    {% elif payment_action.state == 'CANCELLED' %}<p>This group was cancelled. No payment action is available.</p>
+    {% else %}<p>Click Pay to instantly show <strong>Demo paid</strong> to {{ payment_action.receiver_name }}. This is a test action; no money is transferred.</p>{% endif %}
+  </div>
+  <div class="payment-action-buttons">
+    {% if payment_action.state == 'DEMO_READY' %}
+      <form method="post" action="{% url 'payments:demo_pay' payment_action.allocation.pk %}" data-loading="Recording demo payment…">{% csrf_token %}<input type="hidden" name="next" value="order"><button class="btn btn-primary payment-action-pay" type="submit">Pay ₹{{ payment_action.amount|floatformat:2 }} (demo)</button></form>
+      <a class="btn btn-secondary" href="{% url 'payments:member' payment_action.allocation.pk %}">View payment status</a>
+    {% elif payment_action.state == 'DRAFT' %}
+      {% if payment_action.can_finalize %}<a class="btn btn-primary" href="{% url 'orders:detail' payment_action.order.pk %}#finalize-order">Finalize &amp; enable payments</a>{% else %}<a class="btn btn-secondary" href="{% url 'orders:detail' payment_action.order.pk %}">Refresh payment status</a>{% endif %}
+      {% if payment_action.own_cart_item_count %}<a class="btn btn-secondary" href="{% url 'orders:cart' payment_action.order.pk %}">Submit or clear my cart</a>{% endif %}
+    {% elif payment_action.state == 'HOST' %}<a class="btn btn-primary" href="{% url 'payments:collector' payment_action.order.pk %}">See member payment status</a>
+    {% elif payment_action.state == 'DEMO_PAID' or payment_action.state == 'VERIFIED' or payment_action.state == 'ZERO' %}<a class="btn btn-secondary" href="{% url 'payments:member' payment_action.allocation.pk %}">View payment status</a>{% endif %}
+  </div>
+</section>
+{% endif %}

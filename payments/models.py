@@ -26,6 +26,7 @@ class Payment(models.Model):
         PENDING = 'PENDING', 'Pending verification'
         VERIFIED = 'VERIFIED', 'Verified'
         REJECTED = 'REJECTED', 'Rejected'
+        DEMO_PAID = 'DEMO_PAID', 'Demo paid'
 
     # Amounts live exclusively on immutable finalized BillAllocation records.
     allocation = models.OneToOneField('orders.BillAllocation', on_delete=models.PROTECT, related_name='payment')
@@ -37,7 +38,7 @@ class Payment(models.Model):
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name='reviewed_payments')
 
     class Meta:
-        constraints = [models.CheckConstraint(condition=models.Q(status__in=['UNPAID', 'PENDING', 'VERIFIED', 'REJECTED']), name='payment_valid_status')]
+        constraints = [models.CheckConstraint(condition=models.Q(status__in=['UNPAID', 'PENDING', 'VERIFIED', 'REJECTED', 'DEMO_PAID']), name='payment_valid_status')]
 
     def __str__(self):
         return f'{self.allocation} — {self.get_status_display()}'
@@ -71,6 +72,7 @@ class CounterPayment(models.Model):
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='counter_payment_declarations')
     recorded_at = models.DateTimeField(auto_now_add=True)
     reference = models.CharField(max_length=80, blank=True)
+    is_demo = models.BooleanField(default=False)
 
     class Meta:
         constraints = [models.CheckConstraint(condition=models.Q(amount__gte=0), name='nonnegative_counter_payment')]

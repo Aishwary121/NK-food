@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
 {% block title %}Pay your share · N.K. Food Court{% endblock %}
 {% block content %}
+{% if payment_demo_mode or payment.status == 'DEMO_PAID' %}{% include 'payments/_demo_member.html' %}{% else %}
 <div class="page-heading"><div><p class="eyebrow">YOUR SHARE, SIMPLIFIED</p><h1>{% if is_host_share %}Your share as host.{% elif payment.status == 'VERIFIED' %}A good meal. All settled.{% else %}Pay your share{% endif %}</h1><p class="muted">{{ order.group.name }} · Order {{ order.number }}</p></div><a class="btn btn-secondary" href="{% url 'orders:detail' order.pk %}">View bill breakdown</a></div>
 {% if is_host_share %}
 <div class="payment-layout">
   <section class="card stack"><p class="eyebrow">YOUR HOST CONTRIBUTION</p><h2>{{ allocation.member.user.get_full_name|default:allocation.member.user.username }}</h2><p class="payment-amount">₹{{ allocation.amount|floatformat:2 }}</p><p>Your equal share is included when you pay the full <strong>₹{{ order.total|floatformat:2 }}</strong> at the restaurant counter. No UPI transfer to yourself is needed.</p>
-  {% if counter_payment %}<div class="notice success"><h3>Counter payment recorded</h3><p>The full ₹{{ counter_payment.amount|floatformat:2 }} was recorded as paid by {{ counter_payment.recorded_by.get_full_name|default:counter_payment.recorded_by.username }} on {{ counter_payment.recorded_at|date:'d M Y, H:i' }}.</p><p class="small">This is a recorded declaration, not an automatic bank confirmation.</p></div>{% else %}<div class="notice"><h3>Record the counter payment</h3><p>After paying the restaurant, record it on your payment dashboard.</p></div>{% endif %}
+  {% if counter_payment %}<div class="notice success"><h3>{% if counter_payment.is_demo %}Counter demo paid{% else %}Counter payment recorded{% endif %}</h3><p>The full ₹{{ counter_payment.amount|floatformat:2 }} was recorded as paid by {{ counter_payment.recorded_by.get_full_name|default:counter_payment.recorded_by.username }} on {{ counter_payment.recorded_at|date:'d M Y, H:i' }}.</p><p class="small">{% if counter_payment.is_demo %}Simulated for testing; no money was transferred.{% else %}This is a recorded declaration, not an automatic bank confirmation.{% endif %}</p></div>{% else %}<div class="notice"><h3>Record the counter payment</h3><p>After paying the restaurant, record it on your payment dashboard.</p></div>{% endif %}
   <a class="btn btn-primary" href="{% url 'payments:collector' order.pk %}">Counter payment &amp; member collections</a></section>
   <section class="card"><h2>Collect from the other members</h2><p>Each member sees their own amount and your payment QR, then submits a claim after paying you.</p><p>Check the money received in your account before verifying a claim. The dashboard shows who is unpaid, pending, completed or rejected.</p><a class="btn btn-secondary" href="{% url 'payments:settings' order.pk %}">Payment QR Management</a></section>
 </div>
@@ -35,5 +36,6 @@
     {% if can_submit %}<section class="card" id="payment-claim"><h2>Completed the payment?</h2><form method="post" class="stack">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">I Have Paid</button><p class="muted small">This submits a claim for verification. It does not mark your payment as verified.</p></form></section>{% elif form.errors %}<div class="notice warning">{{ form.errors }}</div>{% endif %}
   </div>
 </div>
+{% endif %}
 {% endif %}
 {% endblock %}

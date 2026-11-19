@@ -1,8 +1,10 @@
 """Server-authoritative UPI requests and audited manual payment verification."""
 from decimal import Decimal
+from hashlib import sha256
 from io import BytesIO
 from urllib.parse import quote, urlencode
 import qrcode
+from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
@@ -10,6 +12,15 @@ from groups.models import DiningGroup
 from orders.models import BillAllocation, Order
 from .models import CounterPayment, Payment, PaymentAudit, PaymentQRSettings
 from .validators import validate_upi_id
+
+
+def demo_payments_enabled():
+    return settings.PAYMENT_DEMO_MODE
+
+
+def require_real_payments():
+    if demo_payments_enabled():
+        raise ValidationError('Demo mode is active. Real UPI payments and verification are disabled.')
 
 def is_collector(user, order):
     collector_id = order.group.owner_id if order.split_policy == 'EQUAL' else order.group.collector_id
@@ -31,6 +42,7 @@ def require_collector(user, order):
         raise PermissionDenied('Only the designated collector or an administrator can manage payments.')
 
 def build_upi_uri(allocation):
+    require_real_payments()
     # Reload the allocation: neither request parameters nor caller-mutated model
     # objects can override the finalized member amount used in the payment URI.
     pk = allocation.pk if isinstance(allocation, BillAllocation) else allocation
@@ -80,7 +92,8 @@ def member_payment_context(order, user):
     member = order.group.memberships.filter(user=user).first()
     if member is None:
         return {'payment_action': None}
-    config = PaymentQRSettings.objects.filter(order=order).first()
+    demo_mode = demo_payments_enabled()
+    config = None if demo_mode else PaymentQRSettings.objects.filter(order=order).first()
     method = config.preferred_method if config else ''
     direct_ready = False
     if config and method in (PaymentQRSettings.Method.DYNAMIC, PaymentQRSettings.Method.STATIC):
@@ -89,7 +102,7 @@ def member_payment_context(order, user):
             direct_ready = bool(config.display_name.strip())
         except ValidationError:
             pass
-    setup_ready = bool(config and (
+    setup_ready = demo_mode or bool(config and (
         (method == PaymentQRSettings.Method.DYNAMIC and direct_ready) or
         (method == PaymentQRSettings.Method.STATIC and config.static_qr)
     ))
@@ -104,6 +117,7 @@ def member_payment_context(order, user):
         'finalized': order.status == Order.Status.FINALIZED,
         'status': Payment.Status.UNPAID, 'setup_ready': setup_ready,
         'cart_item_count': 0, 'own_cart_item_count': 0,
+        'demo_mode': demo_mode,
     }
     context = {'payment_action': action}
     if order.group.status == DiningGroup.Status.CANCELLED:
@@ -132,8 +146,12 @@ def member_payment_context(order, user):
     action['status'] = payment.status if payment else Payment.Status.UNPAID
     if allocation.amount <= 0:
         action['state'] = 'ZERO'
-    elif action['status'] in (Payment.Status.PENDING, Payment.Status.VERIFIED):
+    elif action['status'] in (Payment.Status.VERIFIED, Payment.Status.DEMO_PAID):
         action['state'] = action['status']
+    elif demo_mode:
+        action['state'] = 'DEMO_READY'
+    elif action['status'] == Payment.Status.PENDING:
+        action['state'] = 'PENDING'
     elif setup_ready:
         if direct_ready:
             try:
@@ -148,6 +166,7 @@ def member_payment_context(order, user):
 
 @transaction.atomic
 def save_qr_settings(order_id, actor, cleaned_data):
+    require_real_payments()
     # Match group/order service lock order; a previous collector must not save
     # stale receiving details concurrently with collector reassignment.
     group_id = Order.objects.values_list('group_id', flat=True).get(pk=order_id)
@@ -186,6 +205,7 @@ def save_qr_settings(order_id, actor, cleaned_data):
 
 @transaction.atomic
 def submit_payment(allocation_id, actor, reference=''):
+    require_real_payments()
     allocation = BillAllocation.objects.select_related('order__group', 'member').get(pk=allocation_id)
     Order.objects.select_for_update().get(pk=allocation.order_id)
     if allocation.member.user_id != actor.pk:
@@ -218,6 +238,7 @@ def submit_payment(allocation_id, actor, reference=''):
 
 @transaction.atomic
 def review_payment(payment_id, actor, decision, reason=''):
+    require_real_payments()
     payment = Payment.objects.select_related('allocation__order__group').get(pk=payment_id)
     order = Order.objects.select_for_update().select_related('group').get(pk=payment.allocation.order_id)
     require_collector(actor, order)
@@ -242,6 +263,52 @@ def review_payment(payment_id, actor, decision, reason=''):
     payment.refresh_from_db()
     return payment
 
+
+@transaction.atomic
+def demo_pay(allocation_id, actor):
+    """Settle the member's synthetic share without recording a real transfer.
+
+    The ledger amount and identity are reloaded under the order lock. Repeated
+    submissions are harmless and produce exactly one simulation audit event.
+    """
+    if not demo_payments_enabled():
+        raise ValidationError('Demo payments are disabled.')
+    group_id = BillAllocation.objects.values_list('order__group_id', flat=True).get(pk=allocation_id)
+    DiningGroup.objects.select_for_update().get(pk=group_id)
+    order_id = BillAllocation.objects.values_list('order_id', flat=True).get(pk=allocation_id)
+    order = Order.objects.select_for_update().select_related('group').get(pk=order_id)
+    allocation = BillAllocation.objects.select_related('member').get(pk=allocation_id)
+    allocation.order = order
+    if not actor.is_authenticated or allocation.member.user_id != actor.pk:
+        raise PermissionDenied('Only the member can simulate payment of their own share.')
+    if order.status != Order.Status.FINALIZED or allocation.amount <= 0 or order.group.status == DiningGroup.Status.CANCELLED:
+        raise ValidationError('A positive finalized share in an active group is required.')
+    if is_host_allocation(allocation):
+        raise ValidationError('The host records the full counter bill instead of paying themselves.')
+    payment = get_payment(allocation)
+    previous = payment.status
+    if previous in (Payment.Status.DEMO_PAID, Payment.Status.VERIFIED):
+        return payment
+    if previous not in (Payment.Status.UNPAID, Payment.Status.REJECTED, Payment.Status.PENDING):
+        raise ValidationError('This payment cannot be simulated.')
+    changed = Payment.objects.filter(pk=payment.pk, status=previous).update(
+        status=Payment.Status.DEMO_PAID, submitted_at=timezone.now(),
+        reviewed_at=None, reviewed_by=None, rejection_reason='', reference='',
+    )
+    if changed != 1:
+        payment.refresh_from_db()
+        if payment.status in (Payment.Status.DEMO_PAID, Payment.Status.VERIFIED):
+            return payment
+        raise ValidationError('Payment status changed. Refresh and try again.')
+    PaymentAudit.objects.create(
+        order=order, payment=payment, actor=actor, action='DEMO_PAYMENT_COMPLETED',
+        old_status=previous, new_status=Payment.Status.DEMO_PAID,
+        detail=f'Simulated share INR {allocation.amount:.2f}. No money transferred or bank verification performed.',
+    )
+    payment.refresh_from_db()
+    return payment
+
+
 @transaction.atomic
 def record_counter_payment(order_id, actor, reference=''):
     """Record an explicit host declaration using only the finalized server bill."""
@@ -257,11 +324,17 @@ def record_counter_payment(order_id, actor, reference=''):
         raise ValidationError('Counter payment reference is too long.')
     record, created = CounterPayment.objects.get_or_create(order=order, defaults={
         'amount': order.total, 'recorded_by': actor, 'reference': reference,
+        'is_demo': demo_payments_enabled(),
     })
     if not created:
         raise ValidationError('The full counter payment has already been recorded.')
-    PaymentAudit.objects.create(order=order, actor=actor, action='COUNTER_PAYMENT_DECLARED',
-                                detail=f'Full counter bill INR {order.total:.2f} declared paid. This is a declaration, not bank verification.')
+    if record.is_demo:
+        action = 'DEMO_COUNTER_PAYMENT'
+        detail = f'Simulated counter bill INR {order.total:.2f}. No money transferred or bank verification performed.'
+    else:
+        action = 'COUNTER_PAYMENT_DECLARED'
+        detail = f'Full counter bill INR {order.total:.2f} declared paid. This is a declaration, not bank verification.'
+    PaymentAudit.objects.create(order=order, actor=actor, action=action, detail=detail)
     return record
 
 
@@ -280,6 +353,8 @@ def payment_totals(order):
             host_share += allocation.amount
             status_code = 'COUNTER_RECORDED' if counter_payment else 'OWN_SHARE'
             status_label = 'Own share included at counter' if counter_payment else 'Own share - pay at counter'
+            if counter_payment and counter_payment.is_demo:
+                status_code, status_label = 'DEMO_COUNTER_RECORDED', 'Own share included in demo counter payment'
         else:
             amounts[payment.status] += allocation.amount
             if allocation.amount > 0:
@@ -298,4 +373,15 @@ def payment_totals(order):
         'host_share': host_share, 'member_due': total, 'member_count': sum(counts.values()),
         'completed_count': counts['VERIFIED'], 'verified_count': counts['VERIFIED'],
         'pending_count': counts['PENDING'], 'unpaid_count': counts['UNPAID'], 'rejected_count': counts['REJECTED'],
+        'demo_count': counts['DEMO_PAID'], 'demo_amount': amounts['DEMO_PAID'],
+        'demo_outstanding': total - amounts['VERIFIED'] - amounts['DEMO_PAID'],
     }
+
+
+def collector_revision(order):
+    """Opaque read-only revision for member payment and counter status refresh."""
+    states = list(Payment.objects.filter(allocation__order=order).order_by('allocation_id').values_list(
+        'allocation_id', 'status', 'submitted_at', 'reviewed_at', 'rejection_reason'))
+    counter = CounterPayment.objects.filter(order=order).values_list('pk', 'is_demo', 'recorded_at').first()
+    value = (order.status, order.group.status, str(order.total), demo_payments_enabled(), states, counter)
+    return sha256(repr(value).encode('utf-8')).hexdigest()

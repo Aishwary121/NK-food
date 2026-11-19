@@ -1,0 +1,21 @@
+<div class="page-heading"><div><p class="eyebrow">DEMO PAYMENT</p><h1>{% if is_host_share %}Your host contribution{% elif payment.status == 'DEMO_PAID' %}Payment done{% else %}Pay your share{% endif %}</h1><p class="muted">{{ order.group.name }} · {{ order.number }}</p></div><a class="btn btn-secondary" href="{% url 'orders:detail' order.pk %}">View group bill</a></div>
+<div class="payment-layout">
+  <section class="card stack demo-payment-card">
+    <p class="eyebrow">{{ allocation.member.user.get_full_name|default:allocation.member.user.username }}</p>
+    <h2>{% if is_host_share %}Host's own share{% else %}Finalized share{% endif %}</h2>
+    <p class="payment-amount">₹{{ allocation.amount|floatformat:2 }}</p>
+    {% if is_host_share %}
+      <p>Your share is part of the full ₹{{ order.total|floatformat:2 }} counter bill.</p>
+      {% if counter_payment %}<div class="notice success"><h3>{% if counter_payment.is_demo %}Counter demo paid{% else %}Counter declaration recorded{% endif %}</h3><p>{% if counter_payment.is_demo %}This is a simulated payment. No money was transferred.{% else %}The existing counter declaration is preserved.{% endif %}</p></div>{% endif %}
+      <a class="btn btn-primary" href="{% url 'payments:collector' order.pk %}">Counter &amp; member payment status</a>
+    {% elif allocation.amount == 0 %}<div class="notice success">No payment is due for this share.</div>
+    {% elif payment.status == 'DEMO_PAID' %}<div class="notice success"><span class="badge status-demo_paid">Demo paid</span><h3>Payment done for testing</h3><p>The host can see this share as paid in the demo. No money was transferred.</p>{% if payment.submitted_at %}<p class="muted small">Recorded {{ payment.submitted_at|date:'d M Y, H:i' }}</p>{% endif %}</div>
+    {% elif payment.status == 'VERIFIED' %}<div class="notice success"><h3>Previously verified</h3><p>This payment was verified before demo mode. Its original record is unchanged.</p></div>
+    {% elif can_demo_pay %}
+      <p>Click once to mark this share as <strong>Demo paid</strong>. The host dashboard updates automatically.</p>
+      <form method="post" action="{% url 'payments:demo_pay' allocation.pk %}" data-loading="Recording demo payment…">{% csrf_token %}<button class="btn btn-primary payment-action-pay" type="submit">Pay ₹{{ allocation.amount|floatformat:2 }} (demo)</button></form>
+      <p class="muted small">Testing only. No app, bank account or real payment is needed.</p>
+    {% else %}<div class="notice"><h3>{{ payment.get_status_display }}</h3><p>This member can click Pay from their own account. Their updated demo status will appear on your dashboard.</p></div><a class="btn btn-secondary" href="{% url 'payments:collector' order.pk %}">Back to member payments</a>{% endif %}
+  </section>
+  <section class="card stack"><p class="eyebrow">TEST THE FLOW</p><h2>One click, visible to your host</h2><ol class="payment-steps"><li>Each member opens their own finalized bill.</li><li>Select <strong>Pay (demo)</strong> to record a simulated payment.</li><li>The host sees <strong>Demo paid</strong> beside that member.</li></ol><p class="muted">Demo payments are kept separate from previously verified payment records.</p><a class="btn btn-secondary" href="{% url 'groups:detail' order.group.pk %}">Back to your group</a></section>
+</div>

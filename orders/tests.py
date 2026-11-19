@@ -197,7 +197,8 @@ class OrderFlowTests(TestCase):
         finalize_order(order_id=self.order.pk, actor=self.owner)
         self.client.force_login(self.owner)
         response = self.client.get(reverse('orders:detail', args=[self.order.pk]))
-        self.assertContains(response, 'Payment details')
+        own_bill = self.order.allocations.get(member=self.owner_member)
+        self.assertContains(response, reverse('payments:member', args=[own_bill.pk]))
         self.assertContains(response, 'Collector dashboard')
 
     def test_existing_final_allocations_block_duplicate_finalization(self):

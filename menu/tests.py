@@ -210,6 +210,7 @@ class MenuSyncTests(TestCase):
         self.assertEqual(self.category.slug, "admin-custom-category")
 
 
+@override_settings(PAYMENT_DEMO_MODE=False)
 class DiningJourneyTests(TestCase):
     """Exercise real page URLs across the menu, group, order, and payment apps."""
 

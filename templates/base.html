@@ -20,6 +20,7 @@
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
   <div class="announcement"><span class="announcement-dot"></span> Fresh flavours. Shared moments. <span class="announcement-note">Welcome to Neelkanth Refreshments.</span></div>
+  {% if payment_demo_mode %}<div class="demo-payment-banner" role="note"><strong>Demo payment mode</strong> — no money is transferred. Pay buttons record test payments only.</div>{% endif %}
   <header class="site-header">
     <div class="nav-container">
       <a class="brand" href="{% url 'menu:home' %}" aria-label="N.K. Food Court home">
@@ -51,7 +52,7 @@
   <footer class="site-footer">
     <div><a class="footer-brand" href="{% url 'menu:home' %}">N.K. Food Court<span class="brand-period">.</span></a><p>Good food brings us together.</p></div>
     <div class="footer-links"><a href="{% url 'menu:list' %}">Explore the menu</a><a href="{% url 'groups:create' %}">Start a group order</a><a href="{% url 'menu:photography' %}">Photo credits</a><span>Made for your table, down to the last paise.</span></div>
-    <div class="footer-bottom"><span>© {% now "Y" %} Neelkanth Refreshments</span><span>All prices in INR · Payments verified by your collector</span></div>
+    <div class="footer-bottom"><span>© {% now "Y" %} Neelkanth Refreshments</span><span>All prices in INR · {% if payment_demo_mode %}Demo payments only{% else %}Payments verified by your collector{% endif %}</span></div>
   </footer>
   <dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title"><form method="dialog"><p class="eyebrow">One quick check</p><h2 id="confirm-title">Confirm this action</h2><p id="confirm-message"></p><div class="inline-actions"><button class="btn btn-secondary" value="cancel">Keep as is</button><button class="btn btn-primary" value="confirm">Confirm</button></div></form></dialog>
   <script src="{% static 'js/app.js' %}" defer></script>

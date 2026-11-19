@@ -2,6 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db.models import F, Sum
 from django.db.models.functions import TruncDate
@@ -30,6 +31,9 @@ def home(request):
     verified_total = reimbursements.filter(status="VERIFIED").aggregate(
         value=Sum("allocation__amount")
     )["value"] or zero
+    demo_total = reimbursements.filter(status="DEMO_PAID").aggregate(
+        value=Sum("allocation__amount")
+    )["value"] or zero
     allocated_total = BillAllocation.objects.filter(order__status="FINALIZED").exclude(
         order__split_policy=Order.SplitPolicy.EQUAL,
         member__user_id=F('order__group__owner_id'),
@@ -37,7 +41,8 @@ def home(request):
         value=Sum("amount")
     )["value"] or zero
     awaiting_verification = reimbursements.filter(status="PENDING").count()
-    counter_declared_total = CounterPayment.objects.aggregate(value=Sum('amount'))['value'] or zero
+    counter_declared_total = CounterPayment.objects.filter(is_demo=False).aggregate(value=Sum('amount'))['value'] or zero
+    demo_counter_total = CounterPayment.objects.filter(is_demo=True).aggregate(value=Sum('amount'))['value'] or zero
 
     today = timezone.localdate()
     first_day = today - timedelta(days=6)
@@ -64,7 +69,10 @@ def home(request):
     context = {
         "sales_total": sales_total,
         "verified_total": verified_total,
-        "pending_total": allocated_total - verified_total,
+        "demo_total": demo_total,
+        "demo_count": reimbursements.filter(status="DEMO_PAID").count(),
+        "demo_counter_total": demo_counter_total,
+        "pending_total": allocated_total - verified_total - (demo_total if settings.PAYMENT_DEMO_MODE else zero),
         "awaiting_verification": awaiting_verification,
         "counter_declared_total": counter_declared_total,
         "order_count": finalized.count(),

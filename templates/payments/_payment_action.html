@@ -1,3 +1,4 @@
+{% if payment_demo_mode or payment_action.state == 'DEMO_PAID' %}{% include 'payments/_demo_action.html' %}{% else %}
 {% if payment_action %}
 <section class="card payment-action no-print" aria-labelledby="payment-action-title"{% if not payment_action.is_host %}{% if payment_action.state == 'DRAFT' or payment_action.state == 'SETUP_REQUIRED' %} data-payment-state="{{ payment_action.state }}" data-payment-status-url="{% url 'orders:payment_status' payment_action.order.pk %}"{% endif %}{% endif %}>
   <div class="payment-action-copy">
@@ -46,4 +47,5 @@
     {% endif %}
   </div>
 </section>
+{% endif %}
 {% endif %}
