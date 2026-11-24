@@ -1,8 +1,11 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Create your account · N.K. Food Court{% endblock %}
+{% block extra_head %}{% if firebase_web_config %}<link rel="stylesheet" href="{% static 'css/google-sign-in.css' %}">{% endif %}{% endblock %}
 {% block content %}
 <div class="split-layout">
   <section class="hero-copy"><p class="eyebrow">A seat at the table</p><h1>Great food tastes<br>better together.</h1><p class="muted">Save your favourites, order with friends, and let us take care of the maths.</p><div class="card"><strong>Made for your lunch plans.</strong><p>Share the dishes you love. Pay exactly your part. Every rupee stays accounted for.</p></div></section>
-  <section class="card form-card"><p class="eyebrow">Welcome to N.K.</p><h2>Create an account</h2><form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">Create account</button></form><p class="muted">Already have a seat? <a href="{% url 'accounts:login' %}">Sign in</a></p></section>
+  <section class="card form-card"><p class="eyebrow">Welcome to N.K.</p><h2>Create an account</h2>{% include 'accounts/_google_sign_in.html' %}<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">Create account</button></form><p class="muted">Already have a seat? <a href="{% url 'accounts:login' %}">Sign in</a></p></section>
 </div>
 {% endblock %}
+{% block extra_js %}{% if firebase_web_config %}<script type="module" src="{% static 'js/google-sign-in.js' %}"></script>{% endif %}{% endblock %}

@@ -3,12 +3,13 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from accounts.login import SignInView
 from .views import public_menu_image
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
-    path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
+    path('login/', SignInView.as_view(), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('password/change/', auth_views.PasswordChangeView.as_view(template_name='registration/password_change_form.html', success_url='/accounts/profile/'), name='password_change'),
     path('groups/', include('groups.urls')),
