@@ -171,21 +171,49 @@ def add_to_cart(*, group_id, actor, menu_item, quantity=1):
 
 
 @transaction.atomic
-def update_cart(*, cart_id, actor, quantity):
-    initial = CartItem.objects.select_related('member__group').get(pk=cart_id)
-    group = DiningGroup.objects.select_for_update().get(pk=initial.member.group_id)
-    cart = CartItem.objects.get(pk=cart_id)
+def update_cart(*, cart_id, actor, quantity=None, step=None):
+    """Change the current quantity under the shared group/order lock.
+
+    Relative steps are resolved from the fresh row, not the browser's quantity.
+    Reducing an unavailable item remains possible, including removing its last
+    portion; increasing it uses the same availability rules as adding food.
+    """
+    try:
+        initial = CartItem.objects.select_related('member__group__order').get(pk=cart_id)
+    except CartItem.DoesNotExist as exc:
+        raise ValidationError('This item is no longer in your cart. Refresh the cart to continue.') from exc
+    if initial.member.user_id != actor.pk:
+        raise PermissionDenied('You may only edit your own cart.')
+    locked_order(initial.member.group.order.pk)
+    try:
+        cart = CartItem.objects.select_for_update().select_related('member', 'menu_item').get(pk=cart_id)
+    except CartItem.DoesNotExist as exc:
+        raise ValidationError('This item is no longer in your cart. Refresh the cart to continue.') from exc
     if cart.member.user_id != actor.pk:
         raise PermissionDenied('You may only edit your own cart.')
-    if not group.is_open:
-        raise ValidationError('This order is finalized.')
-    if not isinstance(quantity, int) or not 0 <= quantity <= 999:
+    if step is not None:
+        if quantity is not None or type(step) is not int or step not in (-1, 1):
+            raise ValidationError('Choose either an increase or decrease of one portion.')
+        quantity = cart.quantity + step
+    if type(quantity) is not int or not 0 <= quantity <= 999:
         raise ValidationError('Quantity must be from 0 to 999.')
+    if quantity > cart.quantity and not cart.menu_item.available_now:
+        raise ValidationError('This item is currently unavailable. You can reduce or remove it from your cart.')
+    member_id = cart.member_id
+    subtotal = (cart.menu_item.price or Decimal('0')) * quantity
+    can_increase = quantity > 0 and quantity < 999 and cart.menu_item.available_now
     if quantity == 0:
         cart.delete()
     else:
         cart.quantity = quantity
         cart.save(update_fields=['quantity'])
+    remaining = list(CartItem.objects.filter(member_id=member_id).select_related('menu_item'))
+    return {
+        'quantity': quantity, 'subtotal': format(subtotal, '.2f'),
+        'total': format(sum((row.subtotal for row in remaining), Decimal('0')), '.2f'),
+        'removed': quantity == 0, 'item_count': len(remaining),
+        'total_quantity': sum(row.quantity for row in remaining), 'can_increase': can_increase,
+    }
 
 
 @transaction.atomic

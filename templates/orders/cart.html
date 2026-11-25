@@ -1,6 +1,37 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}My cart · N.K. Food Court{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/cart.css' %}">{% endblock %}
 {% block content %}
-<div class="page-heading"><div><p class="eyebrow">YOUR PERSONAL SELECTION</p><h1>A little of what you love</h1><p class="muted">For {{ order.group.name }}. {% if order.split_policy == 'EQUAL' %}Add your choices to the group order. The whole bill is split equally across all members.{% else %}Submit your cart, then choose how to share each item.{% endif %}</p></div><a class="btn btn-secondary" href="{% url 'menu:list' %}?group={{ order.group_id }}">Add more food</a></div>
-<div class="split-layout"><section class="card"><div class="table-wrap"><table><thead><tr><th>Dish</th><th>Unit price</th><th>Quantity</th><th>Subtotal</th></tr></thead><tbody>{% for item in items %}<tr><td><strong>{{ item.menu_item.name }}</strong>{% if not item.menu_item.available_now %}<p class="muted">Currently unavailable. Remove to continue.</p>{% endif %}</td><td>₹{{ item.menu_item.price|floatformat:2 }}</td><td>{% if order.group.is_open %}<form method="post" action="{% url 'orders:update_cart' item.pk %}" class="inline-actions">{% csrf_token %}<input type="number" name="quantity" min="0" max="999" value="{{ item.quantity }}" aria-label="Quantity for {{ item.menu_item.name }}" style="width:5rem"><button class="btn btn-secondary btn-small" type="submit">Update</button><button class="btn btn-outline btn-small" type="submit" name="quantity" value="0">Remove</button></form>{% else %}{{ item.quantity }}{% endif %}</td><td>₹{{ item.subtotal|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="4"><div class="empty-state"><h2>Your cart is waiting</h2><p>Find something delicious on the menu.</p><a class="btn btn-primary" href="{% url 'menu:list' %}?group={{ order.group_id }}">Browse menu</a></div></td></tr>{% endfor %}</tbody></table></div></section><aside class="card"><p class="eyebrow">YOUR SELECTION</p><h2>₹{{ total|floatformat:2 }}</h2><p class="muted">Cart prices are checked again when submitted. {% if order.split_policy == 'EQUAL' %}This is your selection's cost, not your final share. Everyone shares the full group bill equally.{% else %}Shared dishes can then be divided between members.{% endif %}</p>{% if items and order.status == 'DRAFT' and order.group.is_open %}<form method="post" action="{% url 'orders:submit_cart' order.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit">Add to group order</button></form>{% endif %}<p><a href="{% url 'orders:detail' order.pk %}">View group order →</a></p></aside></div>
+<div class="page-heading"><div><p class="eyebrow">YOUR PERSONAL SELECTION</p><h1>A little of what you love</h1><p class="muted">For {{ order.group.name }}. {% if order.split_policy == 'EQUAL' %}Add your choices to the group order. The whole bill is split equally across all members.{% else %}Submit your cart, then choose how to share each item.{% endif %}</p></div>{% if order.status == 'DRAFT' and order.group.is_open %}<a class="btn btn-secondary" href="{% url 'menu:list' %}?group={{ order.group_id }}">Add more food</a>{% endif %}</div>
+<div class="split-layout cart-layout" data-cart>
+  <section class="card cart-items">
+    <p class="sr-only" data-cart-feedback role="status" aria-live="polite" aria-atomic="true"></p>
+    {% if order.status != 'DRAFT' or not order.group.is_open %}<p class="notice">This cart is read-only because the group order is closed.</p>{% endif %}
+    <div class="table-wrap"><table class="cart-table"><thead><tr><th>Dish</th><th>Unit price</th><th>Quantity</th><th>Subtotal</th></tr></thead><tbody>
+    {% for item in items %}
+      <tr data-cart-row data-item-id="{{ item.pk }}" data-dish-name="{{ item.menu_item.name }}">
+        <td class="cart-dish"><strong>{{ item.menu_item.name }}</strong>{% if not item.menu_item.available_now %}<p class="muted small">Currently unavailable.{% if order.status == 'DRAFT' and order.group.is_open %} Use − to remove it from your cart.{% endif %}</p>{% endif %}</td>
+        <td data-label="Unit price">{% if item.menu_item.price != None %}₹{{ item.menu_item.price|floatformat:2 }}{% else %}—{% endif %}</td>
+        <td class="cart-quantity-cell" data-label="Quantity">
+          {% if order.status == 'DRAFT' and order.group.is_open %}
+          <form method="post" action="{% url 'orders:update_cart' item.pk %}" class="cart-stepper" data-cart-stepper data-can-increase="{% if item.menu_item.available_now and item.quantity < 999 %}true{% else %}false{% endif %}">
+            {% csrf_token %}
+            <button class="cart-step" type="submit" name="step" value="-1" data-cart-step="-1" aria-label="{% if item.quantity == 1 %}Remove {{ item.menu_item.name }} from cart{% else %}Decrease quantity of {{ item.menu_item.name }}{% endif %}" title="{% if item.quantity == 1 %}Remove from cart{% else %}Decrease quantity{% endif %}">−</button>
+            <output class="cart-quantity" data-cart-quantity aria-label="Quantity for {{ item.menu_item.name }}">{{ item.quantity }}</output>
+            <button class="cart-step" type="submit" name="step" value="1" data-cart-step="1" aria-label="Increase quantity of {{ item.menu_item.name }}" title="{% if not item.menu_item.available_now %}Dish currently unavailable{% elif item.quantity >= 999 %}Maximum quantity is 999{% else %}Increase quantity{% endif %}"{% if not item.menu_item.available_now or item.quantity >= 999 %} disabled{% endif %}>+</button>
+          </form>
+          {% else %}<span data-cart-quantity>{{ item.quantity }}</span>{% endif %}
+          <p class="cart-step-error" data-cart-error role="alert" hidden></p>
+          <a class="cart-refresh-link" href="{% url 'orders:cart' order.pk %}" data-cart-refresh hidden>Refresh cart</a>
+        </td>
+        <td class="cart-row-subtotal" data-label="Subtotal"><span data-cart-subtotal>₹{{ item.subtotal|floatformat:2 }}</span></td>
+      </tr>
+    {% empty %}<tr class="cart-empty-row"><td colspan="4"><div class="empty-state"><h2>Your cart is waiting</h2><p>Find something delicious on the menu.</p><a class="btn btn-primary" href="{% url 'menu:list' %}?group={{ order.group_id }}">Browse menu</a></div></td></tr>{% endfor %}
+    </tbody></table></div>
+    {% if items and order.status == 'DRAFT' and order.group.is_open %}<p class="muted small cart-quantity-help">Use + or − to change quantities. Tap − at 1 to remove a dish.</p>{% endif %}
+  </section>
+  <aside class="card cart-summary"><p class="eyebrow">YOUR SELECTION</p><h2 data-cart-total>₹{{ total|floatformat:2 }}</h2><p class="muted small" data-cart-count>{{ items|length }} dish{{ items|length|pluralize:'es' }} selected</p><p class="muted">Cart prices are checked again when submitted. {% if order.split_policy == 'EQUAL' %}This is your selection's cost, not your final share. Everyone shares the full group bill equally.{% else %}Shared dishes can then be divided between members.{% endif %}</p>{% if items and order.status == 'DRAFT' and order.group.is_open %}<form method="post" action="{% url 'orders:submit_cart' order.pk %}" data-cart-submit>{% csrf_token %}<button class="btn btn-primary" type="submit">Add to group order</button></form>{% endif %}<p><a href="{% url 'orders:detail' order.pk %}">View group order →</a></p></aside>
+</div>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'js/cart.js' %}" defer></script>{% endblock %}

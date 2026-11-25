@@ -3,7 +3,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
@@ -70,6 +70,7 @@ def payment_status(request, pk):
 
 
 @login_required
+@never_cache
 def cart(request, pk):
     order = accessible_order(request.user, pk)
     member = get_object_or_404(order.group.memberships, user=request.user)
@@ -102,17 +103,41 @@ def add(request):
 
 
 @login_required
+@never_cache
 @require_POST
 def cart_update(request, pk):
-    item = get_object_or_404(CartItem.objects.select_related('member__group__order'), pk=pk, member__user=request.user)
-    order_id = item.member.group.order.pk
+    wants_json = request.get_preferred_type(['text/html', 'application/json']) == 'application/json'
     try:
-        quantity = int(request.POST.get('quantity', ''))
-        update_cart(cart_id=item.pk, actor=request.user, quantity=quantity)
+        item = get_object_or_404(CartItem.objects.select_related('member__group__order'), pk=pk, member__user=request.user)
+    except Http404:
+        if wants_json:
+            return JsonResponse({'error': 'This item is not available in your cart. Refresh the cart to continue.'}, status=404)
+        raise
+    order_id = item.member.group.order.pk
+    if request.content_type not in ('application/x-www-form-urlencoded', 'multipart/form-data'):
+        return JsonResponse({'error': 'Submit the quantity controls as form data.'}, status=415)
+    try:
+        if 'step' in request.POST:
+            steps = request.POST.getlist('step')
+            if len(steps) != 1 or steps[0] not in ('1', '-1') or 'quantity' in request.POST:
+                raise ValidationError('Choose either an increase or decrease of one portion.')
+            result = update_cart(cart_id=item.pk, actor=request.user, step=int(steps[0]))
+        else:
+            if len(request.POST.getlist('quantity')) != 1:
+                raise ValidationError('Enter a valid whole-number quantity.')
+            quantity = int(request.POST['quantity'])
+            result = update_cart(cart_id=item.pk, actor=request.user, quantity=quantity)
     except ValueError:
+        if wants_json:
+            return JsonResponse({'error': 'Enter a valid whole-number quantity.'}, status=400)
         messages.error(request, 'Enter a valid whole-number quantity.')
     except ValidationError as error:
+        if wants_json:
+            return JsonResponse({'error': '; '.join(error.messages)}, status=400)
         show_error(request, error)
+    else:
+        if wants_json:
+            return JsonResponse(result)
     return redirect('orders:cart', pk=order_id)
 
 

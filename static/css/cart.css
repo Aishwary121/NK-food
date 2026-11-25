@@ -1,0 +1,212 @@
+.cart-layout {
+  align-items: start;
+}
+
+.cart-items {
+  min-width: 0;
+}
+
+.cart-table td {
+  vertical-align: middle;
+}
+
+.cart-dish {
+  min-width: 120px;
+  overflow-wrap: anywhere;
+}
+
+.cart-dish .small {
+  margin: 7px 0 0;
+}
+
+.cart-stepper {
+  display: inline-grid;
+  grid-template-columns: 44px minmax(36px,auto) 44px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--paper);
+  margin: 0;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.cart-stepper input[type=hidden] {
+  display: none;
+}
+
+.cart-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 1.3rem;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.cart-step:hover:not(:disabled) {
+  background: #dce9db;
+}
+
+.cart-step:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: -4px;
+  position: relative;
+  z-index: 1;
+}
+
+.cart-step:disabled,.cart-step[aria-disabled=true] {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.cart-layout[data-cart-busy=true] .cart-step {
+  cursor: wait;
+}
+
+.cart-quantity {
+  display: block;
+  min-width: 36px;
+  padding: 0 5px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.cart-step-error {
+  margin: 8px 0 0;
+  max-width: 230px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--red);
+  font-size: .76rem;
+  line-height: 1.5;
+}
+
+.cart-refresh-link {
+  font-size: .77rem;
+  text-decoration: underline;
+}
+
+.cart-step-error[hidden],.cart-refresh-link[hidden] {
+  display: none;
+}
+
+.cart-row-subtotal {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.cart-quantity-help {
+  margin: 14px 0 0;
+}
+
+.cart-summary form {
+  margin-bottom: 18px;
+}
+
+.cart-summary h2 {
+  font-variant-numeric: tabular-nums;
+}
+
+.cart-summary>[data-cart-count] {
+  margin-top: -8px;
+}
+
+.cart-table td[data-label]:before {
+  display: none;
+}
+
+@media(max-width:620px) {
+  .cart-table,.cart-table tbody {
+    display: block;
+    width: 100%;
+  }
+  .cart-table thead {
+    display: none;
+  }
+  .cart-table tr[data-cart-row] {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 15px 12px;
+    padding: 18px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cart-table tr[data-cart-row]:first-child {
+    padding-top: 6px;
+  }
+  .cart-table tr[data-cart-row]:last-child {
+    border-bottom: 0;
+    padding-bottom: 6px;
+  }
+  .cart-table tr[data-cart-row] td {
+    padding: 0;
+    border: 0;
+    min-width: 0;
+    white-space: normal;
+  }
+  .cart-table .cart-dish {
+    grid-column: 1/-1;
+    min-width: 0;
+  }
+  .cart-table .cart-dish strong {
+    font-size: .96rem;
+  }
+  .cart-table td[data-label]:before {
+    display: block;
+    content: attr(data-label);
+    font-size: .64rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 7px;
+  }
+  .cart-table .cart-row-subtotal {
+    grid-column: 1/-1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-top: 1px dashed var(--border);
+    padding-top: 11px;
+    font-weight: 600;
+  }
+  .cart-table .cart-row-subtotal:before {
+    margin: 0;
+  }
+  .cart-table .cart-quantity-cell {
+    text-align: right;
+  }
+  .cart-step-error {
+    max-width: 155px;
+    text-align: left;
+  }
+  .cart-empty-row,.cart-empty-row td {
+    display: block;
+    width: 100%;
+    padding: 0;
+  }
+  .cart-quantity-help {
+    margin-top: 18px;
+  }
+  .cart-stepper {
+    max-width: 100%;
+  }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .cart-step {
+    transition: none;
+  }
+}
